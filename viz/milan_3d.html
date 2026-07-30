@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Milano — Réseau &amp; Anomalies</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="https://unpkg.com/deck.gl@9.0.0/dist.min.js"></script>
+<link href="https://unpkg.com/maplibre-gl@4.5.0/dist/maplibre-gl.css" rel="stylesheet">
+<script src="https://unpkg.com/maplibre-gl@4.5.0/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/lucide@latest"></script>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=satoshi@400,500,700,900&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --page:#0a0f0d; --card:#111a17; --line:#1f2d28; --line-soft:#182420;
+    --ink:#eef2f0; --ink-dim:#9db3ac; --ink-muted:#63756f;
+    --accent:#14b8a6; --accent-soft:#0f2b26; --accent-dim:#1d5850;
+    --danger:#ff5d5a; --danger-soft:#341717;
+    --map-bg:#060a09;
+    --shadow: 0 1px 0 rgba(255,255,255,0.03) inset, 0 8px 24px rgba(0,0,0,0.35);
+    --shadow-hover: 0 1px 0 rgba(255,255,255,0.04) inset, 0 16px 40px rgba(0,0,0,0.45);
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; background:var(--page);
+             font-family:'Satoshi', system-ui, -apple-system, sans-serif; color:var(--ink); }
+  .mono{ font-family:'Consolas', ui-monospace, monospace; font-variant-numeric: tabular-nums; }
+  .display{ font-family:'Satoshi', system-ui, sans-serif; font-weight:900; letter-spacing:-0.01em; }
+  .icon-inline{ display:inline-flex; vertical-align:-3px; }
+  .icon-inline svg{ width:1em; height:1em; }
+
+  #app{ display:grid; grid-template-rows:auto 1fr; height:100vh; padding:1.1rem; gap:1.1rem; }
+
+  header{ display:flex; align-items:center; justify-content:space-between; padding:0 0.2rem; }
+  header .brand{ display:flex; align-items:center; gap:0.7rem; }
+  header .brand .mark{ width:34px; height:34px; border-radius:9px; background:linear-gradient(135deg, var(--accent), #5eead4);
+                        display:flex; align-items:center; justify-content:center; color:#fff; font-size:1.1rem; }
+  header .brand .mark svg{ width:16px; height:16px; }
+  header h1{ margin:0; font-size:1.15rem; }
+  header .sub{ font-size:0.78rem; color:var(--ink-muted); margin-top:0.1rem; }
+  header .badge{ background:var(--card); border:1px solid var(--line); border-radius:20px; padding:0.4rem 0.9rem;
+                 font-size:0.8rem; color:var(--ink-dim); box-shadow:var(--shadow); display:flex; align-items:center; gap:0.5rem; }
+  header .badge b{ color:var(--ink); }
+  header .badge .dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); }
+
+  #layout{ display:grid; grid-template-columns: 280px 1fr; gap:1.1rem; min-height:0; }
+
+  .card{ background:var(--card); border:1px solid var(--line); border-radius:16px; box-shadow:var(--shadow);
+         transition: transform 0.28s cubic-bezier(.2,.8,.2,1), box-shadow 0.28s cubic-bezier(.2,.8,.2,1); }
+  .card:hover{ transform:translateY(-2px); box-shadow:var(--shadow-hover); }
+
+  #sidebar{ display:flex; flex-direction:column; gap:0.9rem; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:2px; }
+
+  .stat{ padding:1rem 1.1rem; }
+  .stat .l{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-muted); margin-bottom:0.5rem; }
+  .stat .v{ font-size:1.9rem; line-height:1; }
+  .stat.anomaly .v{ color:var(--danger); }
+  .stat.traffic .v{ color:var(--accent); }
+  .stat .foot{ margin-top:0.5rem; font-size:0.78rem; color:var(--ink-dim); display:flex; align-items:center; gap:0.4rem; min-height:1.1em; }
+  .stat .foot .pin{ color:var(--accent); }
+
+  .panel-title{ font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em; color:var(--ink-muted);
+                padding:0.9rem 1.1rem 0.2rem; }
+
+  #trendCard{ padding-bottom:0.9rem; flex:0 0 auto; display:flex; flex-direction:column; }
+  #trendChart{ height:110px; padding:0 0.7rem; }
+  #trendChart svg{ width:100%; height:110px; display:block; }
+  #trendChart rect{ cursor:pointer; transition: opacity 0.15s; }
+  #trendChart rect:hover{ opacity:0.7; }
+
+  #legendCard{ padding:1rem 1.1rem; }
+  .ramp{ height:9px; border-radius:5px; margin:0.5rem 0 0.3rem;
+         background:linear-gradient(to right, #06110f, #0a4a43, #0d9488, #5eead4); }
+  .ramp-labels{ display:flex; justify-content:space-between; font-size:0.7rem; color:var(--ink-muted); }
+  .swatch-row{ display:flex; align-items:center; gap:0.55rem; font-size:0.8rem; color:var(--ink-dim); margin-top:0.7rem; }
+  .swatch{ width:11px; height:11px; border-radius:3px; flex:0 0 auto; }
+
+  #mapCol{ display:flex; flex-direction:column; gap:0.9rem; min-height:0; }
+  #mapCard{ position:relative; flex:1; min-height:0; overflow:hidden; background:var(--map-bg); }
+  #map{ position:absolute; inset:0; }
+  #deck-canvas{ position:absolute; inset:0; }
+  #mapCard .frame-label{ position:absolute; top:0.9rem; left:1rem; color:#e7e9ee; font-size:0.78rem;
+                         opacity:0.75; z-index:5; pointer-events:none; }
+  #mapCard .rotate-hint{ position:absolute; bottom:0.9rem; left:1rem; color:#c3d4cf; font-size:0.72rem;
+                          opacity:0.6; z-index:5; pointer-events:none; display:flex; align-items:center; gap:0.4em; }
+  #mapCard .rotate-hint svg{ width:13px; height:13px; }
+
+  /* Boutons de navigation MapLibre (zoom + boussole) restylés pour le thème sombre */
+  .maplibregl-ctrl-group{ background:var(--card) !important; border:1px solid var(--line) !important;
+                           box-shadow:var(--shadow) !important; border-radius:8px !important; overflow:hidden; }
+  .maplibregl-ctrl-group button{ background:transparent !important; }
+  .maplibregl-ctrl-group button + button{ border-top:1px solid var(--line) !important; }
+  .maplibregl-ctrl-icon{ filter: invert(1) brightness(1.5); }
+  .maplibregl-ctrl-group button:hover{ background:var(--accent-soft) !important; }
+
+  #controls{ display:flex; align-items:center; gap:1.3rem; padding:0.9rem 1.2rem; flex-wrap:wrap; }
+  .ctrl-group{ display:flex; align-items:center; gap:0.6rem; }
+  .ctrl-label{ font-size:0.72rem; letter-spacing:0.06em; color:var(--ink-muted); text-transform:uppercase; white-space:nowrap; }
+  select{
+    background:var(--card); color:var(--ink); border:1px solid var(--line); border-radius:8px;
+    padding:0.45rem 0.7rem; font-size:0.85rem; min-width:180px; font-family: inherit;
+  }
+  input[type=range]{
+    width:200px; -webkit-appearance:none; appearance:none; height:5px; border-radius:3px;
+    background:linear-gradient(to right, var(--accent) 0%, var(--accent) 50%, var(--line) 50%, var(--line) 100%);
+    outline:none; cursor:pointer;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; appearance:none; width:16px; height:16px; border-radius:50%;
+    background:var(--accent); border:2.5px solid var(--page); box-shadow:0 0 0 1px var(--accent), 0 2px 6px rgba(20,184,166,0.45);
+    transition: transform 0.15s ease;
+  }
+  input[type=range]::-webkit-slider-thumb:hover{ transform:scale(1.15); }
+  input[type=range]::-moz-range-thumb{
+    width:13px; height:13px; border-radius:50%; background:var(--accent); border:2.5px solid var(--page);
+    box-shadow:0 0 0 1px var(--accent), 0 2px 6px rgba(20,184,166,0.45); cursor:pointer;
+  }
+  button{
+    background:var(--accent); color:#fff; border:none; border-radius:8px; padding:0.5rem 0.9rem;
+    cursor:pointer; font-size:0.83rem; font-weight:600; display:flex; align-items:center; gap:0.4rem;
+    transition: background 0.18s ease, transform 0.12s ease;
+  }
+  button:hover{ background:#0b7b71; transform:translateY(-1px); }
+  button:active{ transform:translateY(0); }
+  button.icon{ width:2.2rem; height:2.2rem; padding:0; justify-content:center; background:var(--card); color:var(--ink-dim); border:1px solid var(--line); }
+  button.icon:hover{ background:var(--accent-soft); color:var(--accent); transform:translateY(-1px); }
+  .hour-readout{ font-size:0.95rem; color:var(--accent); min-width:2.8em; }
+
+  button.toggle{ background:var(--card); color:var(--ink-dim); border:1px solid var(--line); }
+  button.toggle:hover{ background:var(--accent-soft); color:var(--accent); }
+  button.toggle.active{ background:var(--accent); color:#fff; border-color:var(--accent); }
+
+  .kbd-hint{ font-size:0.72rem; color:var(--ink-muted); display:flex; align-items:center; gap:0.35em; }
+  .kbd-hint kbd{ background:var(--page); border:1px solid var(--line); border-radius:4px; padding:0.05em 0.4em;
+                 font-family:'Consolas', monospace; font-size:0.85em; color:var(--ink-dim); }
+
+  #momentsCard{ padding-bottom:1rem; }
+  .moments-grid{ display:grid; grid-template-columns:1fr 1fr; gap:0.5rem; padding:0 1.1rem; }
+  .moment-btn{ background:var(--page); color:var(--ink-dim); border:1px solid var(--line); border-radius:8px;
+               padding:0.5rem 0.6rem; font-size:0.78rem; font-weight:600;
+               flex-direction:column; align-items:center; justify-content:center; text-align:center;
+               line-height:1.25; gap:0; white-space:normal; min-width:0; }
+  .moment-btn:hover{ background:var(--accent-soft); color:var(--accent); transform:translateY(-1px); }
+  .moment-btn .n{ display:block; font-size:0.68rem; font-weight:400; color:var(--ink-muted); margin-top:0.15em; }
+  .moment-btn:hover .n{ color:var(--accent-dim); }
+
+  #hourChart{ width:140px; height:26px; }
+
+  #loading{
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:1rem; background:var(--page); color:var(--ink-muted); z-index:50; font-size:0.85rem;
+  }
+  .pulse-mark{ width:44px; height:44px; border-radius:12px; background:var(--accent);
+               display:flex; align-items:center; justify-content:center; color:#fff;
+               animation:pulse 1.4s cubic-bezier(.4,0,.6,1) infinite; }
+  @keyframes pulse{ 0%,100%{ transform:scale(1); box-shadow:0 0 0 0 rgba(13,148,136,0.35); }
+                     50%{ transform:scale(1.08); box-shadow:0 0 0 12px rgba(13,148,136,0); } }
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="pulse-mark">
+    <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="1" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="9" width="6" height="6" rx="1.5"/><rect x="17" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="17" width="6" height="6" rx="1.5" opacity="0.35"/></svg>
+  </div>
+  <div>Chargement des données (~25 Mo)…</div>
+</div>
+
+<div id="app" style="display:none;">
+  <header>
+    <div class="brand">
+      <div class="mark">
+        <svg viewBox="0 0 24 24" fill="currentColor"><rect x="1" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="9" width="6" height="6" rx="1.5"/><rect x="17" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="17" width="6" height="6" rx="1.5" opacity="0.35"/></svg>
+      </div>
+      <div>
+        <h1 class="display">Milano — trafic &amp; anomalies</h1>
+        <div class="sub">Détection inspirée de DiNATrAX · nov. 2013 → janv. 2014</div>
+      </div>
+    </div>
+    <div class="badge"><span class="dot"></span> <b id="badgeDate">–</b>&nbsp;·&nbsp;<span id="badgeHour">–</span></div>
+  </header>
+
+  <div id="layout">
+    <div id="sidebar">
+      <div class="card stat anomaly">
+        <div class="l">Anomalies ce jour</div>
+        <div class="v mono" id="statAnomaly">–</div>
+        <div class="foot"><span class="pin" id="statEvent"></span></div>
+      </div>
+      <div class="card stat traffic">
+        <div class="l">Trafic total (heure sél.)</div>
+        <div class="v mono" id="statTraffic">–</div>
+        <div class="foot">CDR Internet cumulés, 10 000 grids</div>
+      </div>
+      <div class="card" id="momentsCard">
+        <div class="panel-title">Moments clés</div>
+        <div class="moments-grid">
+          <button class="moment-btn" data-date="2014-01-01">Nouvel An<span class="n">438 anomalies</span></button>
+          <button class="moment-btn" data-date="2013-12-25">Noël<span class="n">113 anomalies</span></button>
+          <button class="moment-btn" data-date="2013-12-22">Derby Milan-Inter<span class="n">Serie A</span></button>
+          <button class="moment-btn" data-date="2013-12-07">Sant'Ambrogio<span class="n">36 anomalies</span></button>
+        </div>
+      </div>
+      <div class="card" id="legendCard">
+        <div class="panel-title" style="padding:0;">Intensité du trafic</div>
+        <div class="ramp"></div>
+        <div class="ramp-labels"><span>faible</span><span>fort</span></div>
+        <div class="swatch-row"><span class="swatch" style="background:#e3383f;"></span> grid en anomalie ce jour</div>
+        <div class="swatch-row"><span class="swatch" style="background:#0d9488;"></span> activité normale</div>
+      </div>
+      <div class="card" id="trendCard">
+        <div class="panel-title">Anomalies par jour (clic = y aller)</div>
+        <div id="trendChart"><svg id="trendSvg"></svg></div>
+      </div>
+    </div>
+
+    <div id="mapCol">
+      <div class="card" id="mapCard">
+        <div id="map"></div>
+        <canvas id="deck-canvas"></canvas>
+        <div class="frame-label mono" id="frameLabel"></div>
+        <div class="rotate-hint mono"><i data-lucide="rotate-3d"></i> clic droit + glisser (ou Ctrl + glisser) : pivoter / incliner</div>
+      </div>
+      <div class="card" id="controls">
+        <div class="ctrl-group">
+          <span class="ctrl-label">Jour</span>
+          <button class="icon" id="prevDay"><i data-lucide="chevron-left"></i></button>
+          <select id="daySelect"></select>
+          <button class="icon" id="nextDay"><i data-lucide="chevron-right"></i></button>
+        </div>
+        <div class="ctrl-group">
+          <span class="ctrl-label">Heure</span>
+          <input type="range" id="hourSlider" min="0" max="23" value="12" step="1">
+          <span class="hour-readout mono" id="hourReadout">12h</span>
+        </div>
+        <div class="ctrl-group">
+          <svg id="hourChart"></svg>
+        </div>
+        <div class="ctrl-group">
+          <button class="toggle" id="compareBtn"><i data-lucide="layers"></i> Comparer au normal</button>
+        </div>
+        <div class="ctrl-group kbd-hint">
+          <kbd>␣</kbd> lecture <kbd>←→</kbd> heure <kbd>↑↓</kbd> jour
+        </div>
+        <div class="ctrl-group" style="margin-left:auto;">
+          <button id="playBtn"><i data-lucide="play"></i> Lecture</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Icônes pré-rendues (Lucide) qu'on clone en JS pour le contenu généré dynamiquement
+     (bouton lecture/pause, étiquette d'événement, info-bulle) -->
+<div id="iconLibrary" style="position:absolute; width:0; height:0; overflow:hidden;">
+  <i data-lucide="play" id="icoPlay"></i>
+  <i data-lucide="pause" id="icoPause"></i>
+  <i data-lucide="calendar" id="icoCalendar"></i>
+  <i data-lucide="triangle-alert" id="icoAlert"></i>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+// Rend les icônes statiques (data-lucide="...") tout de suite, y compris celles de
+// #iconLibrary qu'on ira cloner en JS pour le contenu généré dynamiquement.
+if (window.lucide) lucide.createIcons();
+function iconHTML(id){
+  var el = document.getElementById(id);
+  return el ? el.outerHTML.replace('id="' + id + '"', '') : '';
+}
+
+var KNOWN_EVENTS = {
+  "2013-11-01": "Ognissanti (jour férié)",
+  "2013-11-02": "Milan - Fiorentina (Serie A)",
+  "2013-11-09": "Inter - Livorno (Serie A)",
+  "2013-11-23": "Milan - Genoa (Serie A)",
+  "2013-11-29": "Black Friday",
+  "2013-12-01": "Inter - Sampdoria (Serie A)",
+  "2013-12-04": "Inter - Trapani (Coppa Italia)",
+  "2013-12-07": "Sant'Ambrogio (jour férié local)",
+  "2013-12-08": "Immacolata Concezione + Inter - Parma",
+  "2013-12-22": "Derby Milan - Inter (Serie A)",
+  "2013-12-24": "Vigile de Noël",
+  "2013-12-25": "Noël (jour férié)",
+  "2013-12-26": "Santo Stefano (jour férié)",
+  "2013-12-31": "Saint-Sylvestre",
+  "2014-01-01": "Nouvel An (jour férié)"
+};
+
+var state = { dayIdx: 0, hourIdx: 12, playing: false, playTimer: null, compareMode: false };
+var meta, geojson, trafficArr, anomalyArr, typicalArr, deckgl, maplibreMap;
+var dailyAnomalyCounts = [];   // 1 valeur par jour
+var lightingEffect;
+
+function fmt(n){ return Math.round(n).toLocaleString('fr-FR'); }
+
+var prevAnomalyCount = null, prevTrafficTotal = null;
+var animFrames = {};
+function animateNumber(key, el, from, to, duration){
+  if (from === null) from = to;
+  if (animFrames[key]) cancelAnimationFrame(animFrames[key]);
+  var start = performance.now();
+  function step(now){
+    var t = Math.min(1, (now - start) / duration);
+    var eased = 1 - Math.pow(1 - t, 3);
+    el.textContent = fmt(from + (to - from) * eased);
+    if (t < 1) animFrames[key] = requestAnimationFrame(step);
+  }
+  animFrames[key] = requestAnimationFrame(step);
+}
+
+function updateSliderFill(input){
+  var min = +input.min, max = +input.max, val = +input.value;
+  var pct = ((val - min) / (max - min)) * 100;
+  input.style.background = 'linear-gradient(to right, var(--accent) 0%, var(--accent) ' + pct +
+    '%, var(--line) ' + pct + '%, var(--line) 100%)';
+}
+
+function rampColor(t){
+  var stops = [[6,17,15],[10,74,67],[13,148,136],[94,234,212]];
+  var seg = Math.min(2, Math.floor(t*3));
+  var lt = t*3 - seg;
+  var a = stops[seg], b = stops[seg+1];
+  return [ a[0]+(b[0]-a[0])*lt, a[1]+(b[1]-a[1])*lt, a[2]+(b[2]-a[2])*lt ];
+}
+
+function getValue(dayIdx, hourIdx, gridIdx){
+  return trafficArr[(dayIdx * meta.nHours + hourIdx) * meta.nGrids + gridIdx] / 10;
+}
+function isAnomaly(dayIdx, gridIdx){
+  return anomalyArr[dayIdx * meta.nGrids + gridIdx] === 1;
+}
+
+// Profil "normal" par (jour de semaine, heure, grid) = médiane de toutes les journées de ce
+// jour de semaine — le même calcul que la référence du notebook, mais en valeurs numériques
+// directement comparables au trafic réel, pour l'affichage en silhouette de comparaison.
+function computeTypicalProfiles(){
+  var nGrids = meta.nGrids, nHours = meta.nHours;
+  var byWeekday = [[], [], [], [], [], [], []];
+  meta.dates.forEach(function(d, i){
+    byWeekday[new Date(d + 'T12:00:00').getDay()].push(i);
+  });
+  var typical = new Float32Array(7 * nHours * nGrids);
+  var tmp = new Float32Array(16);
+  for (var wd = 0; wd < 7; wd++){
+    var days = byWeekday[wd], n = days.length;
+    if (!n) continue;
+    for (var h = 0; h < nHours; h++){
+      for (var g = 0; g < nGrids; g++){
+        for (var k = 0; k < n; k++){
+          tmp[k] = trafficArr[(days[k] * nHours + h) * nGrids + g];
+        }
+        // Petit tri par insertion : plus rapide qu'Array.sort pour des tableaux minuscules (~7-9 éléments)
+        for (var a = 1; a < n; a++){
+          var v = tmp[a], b = a - 1;
+          while (b >= 0 && tmp[b] > v){ tmp[b+1] = tmp[b]; b--; }
+          tmp[b+1] = v;
+        }
+        var mid = n >> 1;
+        typical[(wd * nHours + h) * nGrids + g] = (n % 2) ? tmp[mid] : (tmp[mid-1] + tmp[mid]) / 2;
+      }
+    }
+  }
+  return typical;
+}
+
+function getTypicalValue(dayIdx, hourIdx, gridIdx){
+  var wd = new Date(meta.dates[dayIdx] + 'T12:00:00').getDay();
+  return typicalArr[(wd * meta.nHours + hourIdx) * meta.nGrids + gridIdx] / 10;
+}
+
+function elevationOf(v, anomalous){
+  var e = Math.pow(Math.max(0, v), 0.6) * 16;
+  return anomalous ? Math.max(e, 900) : e;
+}
+
+function buildLayer(){
+  var dayIdx = state.dayIdx, hourIdx = state.hourIdx;
+  var maxV = meta.maxValue / 10;
+  var sqrtMax = Math.pow(maxV, 0.55);
+  return new deck.GeoJsonLayer({
+    id: 'grids',
+    data: geojson,
+    extruded: true,
+    filled: true,
+    stroked: true,
+    getLineColor: function(f){ return isAnomaly(dayIdx, f.properties.__idx) ? [255,150,150,255] : [6,15,13,90]; },
+    getLineWidth: function(f){ return isAnomaly(dayIdx, f.properties.__idx) ? 2 : 1; },
+    lineWidthMinPixels: 1,
+    material: { ambient: 0.55, diffuse: 0.5, shininess: 18, specularColor: [70, 110, 105] },
+    getElevation: function(f){
+      var gi = f.properties.__idx;
+      var v = getValue(dayIdx, hourIdx, gi);
+      return elevationOf(v, isAnomaly(dayIdx, gi));
+    },
+    getFillColor: function(f){
+      var gi = f.properties.__idx;
+      if (isAnomaly(dayIdx, gi)) return [227, 56, 63, 240];
+      var v = getValue(dayIdx, hourIdx, gi);
+      var c = rampColor(Math.min(1, Math.pow(v, 0.55) / sqrtMax));
+      return [c[0], c[1], c[2], 225];
+    },
+    pickable: true,
+    autoHighlight: true,
+    highlightColor: [255, 255, 255, 90],
+    updateTriggers: {
+      getElevation: [dayIdx, hourIdx],
+      getFillColor: [dayIdx, hourIdx],
+      getLineColor: [dayIdx],
+      getLineWidth: [dayIdx]
+    },
+    transitions: {
+      getElevation: { duration: 550, easing: t => 1 - Math.pow(1 - t, 3) },
+      getFillColor: 550
+    }
+  });
+}
+
+// Couche "silhouette" : le profil normal (médiane du même jour de semaine), en translucide,
+// pour voir d'un coup d'œil où et de combien la réalité s'écarte de l'habitude.
+function buildGhostLayer(){
+  var dayIdx = state.dayIdx, hourIdx = state.hourIdx;
+  return new deck.GeoJsonLayer({
+    id: 'ghost',
+    data: geojson,
+    extruded: true,
+    filled: true,
+    stroked: true,
+    getLineColor: [255, 255, 255, 50],
+    getLineWidth: 1,
+    lineWidthMinPixels: 1,
+    material: { ambient: 0.9, diffuse: 0.15, shininess: 4, specularColor: [30, 30, 30] },
+    getElevation: function(f){
+      var v = getTypicalValue(dayIdx, hourIdx, f.properties.__idx);
+      return elevationOf(v, false);
+    },
+    getFillColor: [255, 255, 255, 26],
+    pickable: false,
+    updateTriggers: { getElevation: [dayIdx, hourIdx] },
+    transitions: { getElevation: { duration: 550, easing: t => 1 - Math.pow(1 - t, 3) } }
+  });
+}
+
+function render(){
+  var layers = state.compareMode ? [buildGhostLayer(), buildLayer()] : [buildLayer()];
+  deckgl.setProps({ layers: layers });
+  updateStats();
+  drawHourChart();
+}
+
+function updateStats(){
+  var count = 0, total = 0;
+  for (var i = 0; i < meta.nGrids; i++){
+    if (isAnomaly(state.dayIdx, i)) count++;
+    total += getValue(state.dayIdx, state.hourIdx, i);
+  }
+  animateNumber('anomaly', document.getElementById('statAnomaly'), prevAnomalyCount, count, 500);
+  animateNumber('traffic', document.getElementById('statTraffic'), prevTrafficTotal, total, 500);
+  prevAnomalyCount = count;
+  prevTrafficTotal = total;
+  var dateStr = meta.dates[state.dayIdx];
+  var ev = KNOWN_EVENTS[dateStr];
+  document.getElementById('statEvent').innerHTML = ev ? ('<span class="icon-inline">' + iconHTML('icoCalendar') + '</span> ' + ev) : '';
+  document.getElementById('hourReadout').textContent = String(state.hourIdx).padStart(2,'0') + 'h';
+  document.getElementById('badgeDate').textContent = dateStr + ' (' + weekdayName(dateStr) + ')';
+  document.getElementById('badgeHour').textContent = String(state.hourIdx).padStart(2,'0') + ':00';
+  document.getElementById('frameLabel').textContent = dateStr + ' — ' + String(state.hourIdx).padStart(2,'0') + 'h00';
+}
+
+function weekdayName(dateStr){
+  var d = new Date(dateStr + 'T12:00:00');
+  return ['dim','lun','mar','mer','jeu','ven','sam'][d.getDay()];
+}
+
+function stepHour(delta){
+  state.hourIdx = (state.hourIdx + delta + 24) % 24;
+  var slider = document.getElementById('hourSlider');
+  slider.value = state.hourIdx;
+  updateSliderFill(slider);
+  render();
+}
+function stepDay(delta){
+  state.dayIdx = (state.dayIdx + delta + meta.nDays) % meta.nDays;
+  document.getElementById('daySelect').value = state.dayIdx;
+  render();
+  drawTrendChart();
+}
+function goToDate(dateStr){
+  var idx = meta.dates.indexOf(dateStr);
+  if (idx === -1) return;
+  state.dayIdx = idx;
+  document.getElementById('daySelect').value = idx;
+  render();
+  drawTrendChart();
+}
+
+function populateDaySelect(){
+  var sel = document.getElementById('daySelect');
+  sel.innerHTML = '';
+  meta.dates.forEach(function(d, i){
+    var opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = d + ' (' + weekdayName(d) + ')' + (KNOWN_EVENTS[d] ? ' ★' : '');
+    sel.appendChild(opt);
+  });
+  sel.value = state.dayIdx;
+}
+
+function computeDailyAnomalyCounts(){
+  dailyAnomalyCounts = new Array(meta.nDays).fill(0);
+  for (var d = 0; d < meta.nDays; d++){
+    var c = 0;
+    var base = d * meta.nGrids;
+    for (var i = 0; i < meta.nGrids; i++) if (anomalyArr[base + i] === 1) c++;
+    dailyAnomalyCounts[d] = c;
+  }
+}
+
+function drawTrendChart(){
+  var svg = document.getElementById('trendSvg');
+  var W = svg.clientWidth || 240, H = svg.clientHeight || 110;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.innerHTML = '';
+  var max = Math.max.apply(null, dailyAnomalyCounts) || 1;
+  var bw = W / dailyAnomalyCounts.length;
+  var ns = 'http://www.w3.org/2000/svg';
+  dailyAnomalyCounts.forEach(function(c, i){
+    var h = Math.max(1.5, (c / max) * (H - 4));
+    var rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', i * bw + 0.5);
+    rect.setAttribute('y', H - h);
+    rect.setAttribute('width', Math.max(1, bw - 1));
+    rect.setAttribute('height', h);
+    rect.setAttribute('rx', 1.5);
+    rect.setAttribute('fill', i === state.dayIdx ? '#14b8a6' : (c > 0 ? '#ff5d5a' : '#1f2d28'));
+    rect.addEventListener('click', (function(idx){ return function(){
+      state.dayIdx = idx;
+      document.getElementById('daySelect').value = idx;
+      render();
+      drawTrendChart();
+    }; })(i));
+    var title = document.createElementNS(ns, 'title');
+    title.textContent = meta.dates[i] + ' — ' + c + ' anomalies';
+    rect.appendChild(title);
+    svg.appendChild(rect);
+  });
+}
+
+function drawHourChart(){
+  var svg = document.getElementById('hourChart');
+  var W = 140, H = 26;
+  svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+  svg.innerHTML = '';
+  var vals = [];
+  var base = state.dayIdx * meta.nHours * meta.nGrids;
+  for (var h = 0; h < 24; h++){
+    var sum = 0;
+    var hb = base + h * meta.nGrids;
+    for (var i = 0; i < meta.nGrids; i++) sum += trafficArr[hb + i];
+    vals.push(sum);
+  }
+  var max = Math.max.apply(null, vals) || 1;
+  var bw = W / 24;
+  var ns = 'http://www.w3.org/2000/svg';
+  vals.forEach(function(v, h){
+    var hgt = Math.max(1, (v / max) * (H - 2));
+    var rect = document.createElementNS(ns, 'rect');
+    rect.setAttribute('x', h * bw + 0.5);
+    rect.setAttribute('y', H - hgt);
+    rect.setAttribute('width', Math.max(1, bw - 1));
+    rect.setAttribute('height', hgt);
+    rect.setAttribute('fill', h === state.hourIdx ? '#14b8a6' : '#2a3c36');
+    svg.appendChild(rect);
+  });
+}
+
+function computeBBox(gj){
+  var minLon=1e9, maxLon=-1e9, minLat=1e9, maxLat=-1e9;
+  function walk(c){
+    if (typeof c[0] === 'number'){
+      if (c[0]<minLon) minLon=c[0]; if (c[0]>maxLon) maxLon=c[0];
+      if (c[1]<minLat) minLat=c[1]; if (c[1]>maxLat) maxLat=c[1];
+    } else { c.forEach(walk); }
+  }
+  gj.features.forEach(function(f){ walk(f.geometry.coordinates); });
+  return [minLon, minLat, maxLon, maxLat];
+}
+
+// Calcul "zoom to fit bounds" (façon Google Maps), en synchrone, pour que MapLibre et deck.gl
+// démarrent avec EXACTEMENT la même caméra — un fitBounds() async fait dériver les deux
+// (l'un des deux "gagne" selon qui charge en premier), d'où le décalage carte/colonnes 3D observé.
+function latRad(lat){ var s = Math.sin(lat * Math.PI / 180); return Math.log((1 + s) / (1 - s)) / 2; }
+function zoomToFit(bbox, widthPx, heightPx){
+  var WORLD_DIM = 256, ZOOM_MAX = 18;
+  function zoomFor(px, worldPx, fraction){ return Math.log(px / worldPx / fraction) / Math.LN2; }
+  var latFraction = (latRad(bbox[3]) - latRad(bbox[1])) / Math.PI;
+  var lngDiff = bbox[2] - bbox[0];
+  var lngFraction = (lngDiff < 0 ? lngDiff + 360 : lngDiff) / 360;
+  var latZoom = zoomFor(heightPx, WORLD_DIM, latFraction || 1e-9);
+  var lngZoom = zoomFor(widthPx, WORLD_DIM, lngFraction || 1e-9);
+  return Math.min(latZoom, lngZoom, ZOOM_MAX);
+}
+
+function init(){
+  // Afficher la mise en page AVANT de mesurer #mapCard : un élément caché (display:none)
+  // a une taille de 0x0, ce qui casse le calcul de cadrage caméra plus bas.
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('app').style.display = 'grid';
+
+  var bbox = computeBBox(geojson);
+  var center = [(bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2];
+
+  var mapEl = document.getElementById('mapCard');
+  var padPx = 60; // marge pour ne pas coller les bords de la carte au cadre
+  var fitZoom = zoomToFit(bbox, mapEl.clientWidth - padPx * 2, mapEl.clientHeight - padPx * 2);
+  var zoom = fitZoom - 0.6; // léger dézoom pour compenser la caméra inclinée (pitch)
+  var finalView = { longitude: center[0], latitude: center[1], zoom: zoom, pitch: 55, bearing: -15 };
+  var startView = { longitude: center[0], latitude: center[1], zoom: Math.max(zoom - 3.2, 1), pitch: 0, bearing: 0 };
+
+  // Caméra en mode "controlled" (currentViewState toujours fourni explicitement) : c'est ce qui
+  // permet de la piloter par programme (vol d'ouverture, rotation lente au repos) tout en gardant
+  // l'interaction souris/tactile normale via onViewStateChange.
+  var currentViewState = startView;
+  var flying = true, userInteracted = false;
+
+  maplibreMap = new maplibregl.Map({
+    container: 'map',
+    style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
+    center: [startView.longitude, startView.latitude], zoom: startView.zoom,
+    pitch: startView.pitch, bearing: startView.bearing, antialias: true, attributionControl: false
+  });
+  // Boussole + zoom cliquables : le moyen "visible" de pivoter/incliner la vue, en plus du
+  // clic droit + glisser (ou Ctrl + glisser) sur la carte elle-même.
+  maplibreMap.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
+  // Le clic droit ouvrirait sinon le menu contextuel du navigateur au lieu de faire pivoter la vue.
+  document.getElementById('deck-canvas').addEventListener('contextmenu', function(e){ e.preventDefault(); });
+
+  // Éclairage subtil façon "nuit" : ambiante dominante + une touche directionnelle froide et
+  // discrète juste pour lire le relief — pas de lumière chaude façon plein soleil.
+  lightingEffect = new deck.LightingEffect({
+    ambient: new deck.AmbientLight({ color: [255,255,255], intensity: 1.7 }),
+    dir: new deck.DirectionalLight({ color: [200,220,225], intensity: 0.45, direction: [-1, -2, -1] })
+  });
+
+  deckgl = new deck.Deck({
+    canvas: 'deck-canvas',
+    viewState: currentViewState,
+    controller: true,
+    effects: [lightingEffect],
+    layers: [],
+    onViewStateChange: function(params){
+      // Ignoré pendant le vol d'ouverture : c'est alors MapLibre qui pilote (voir plus bas) —
+      // sinon un jumpTo() ici interromprait son animation en cours (elle se fige net).
+      if (flying) return;
+      // Dès la toute première interaction réelle de l'utilisateur avec la caméra (glisser,
+      // zoomer, pivoter...), on coupe la rotation automatique pour de bon — plus jamais de
+      // reprise intempestive pendant qu'on essaie de regarder quelque chose.
+      userInteracted = true;
+      currentViewState = params.viewState;
+      deckgl.setProps({ viewState: currentViewState });
+      maplibreMap.jumpTo({
+        center: [currentViewState.longitude, currentViewState.latitude],
+        zoom: currentViewState.zoom, pitch: currentViewState.pitch, bearing: currentViewState.bearing
+      });
+    },
+    getTooltip: function(info){
+      if (!info.object) return null;
+      var gi = info.object.properties.__idx;
+      var v = getValue(state.dayIdx, state.hourIdx, gi);
+      var anom = isAnomaly(state.dayIdx, gi);
+      return {
+        html: '<span style="color:#5eead4;font-weight:600;">Grid ' + info.object.properties.cellId + '</span><br>' +
+              'Trafic Internet : ' + v.toFixed(1) + '<br>' +
+              (anom ? '<span style="color:#ff7b80;font-weight:700;display:inline-flex;align-items:center;gap:0.3em;">' +
+                      '<span class="icon-inline" style="vertical-align:-1px;">' + iconHTML('icoAlert') + '</span> anomalie détectée ce jour</span>' : 'activité normale'),
+        style: {
+          backgroundColor: '#0c1614', border: '1px solid #1c2e2a', borderRadius: '8px',
+          padding: '0.55rem 0.75rem', fontSize: '0.78rem', color: '#eef0f3',
+          fontFamily: "'Satoshi', system-ui, sans-serif", boxShadow: '0 8px 24px rgba(0,0,0,0.4)'
+        }
+      };
+    }
+  });
+
+  populateDaySelect();
+  computeDailyAnomalyCounts();
+  drawTrendChart();
+  render();
+
+  document.getElementById('daySelect').addEventListener('change', function(e){
+    state.dayIdx = parseInt(e.target.value, 10); render(); drawTrendChart();
+  });
+  document.getElementById('prevDay').addEventListener('click', function(){ stepDay(-1); });
+  document.getElementById('nextDay').addEventListener('click', function(){ stepDay(1); });
+  document.getElementById('hourSlider').addEventListener('input', function(e){
+    state.hourIdx = parseInt(e.target.value, 10); updateSliderFill(e.target); render();
+  });
+  updateSliderFill(document.getElementById('hourSlider'));
+  document.getElementById('playBtn').addEventListener('click', togglePlay);
+  window.addEventListener('resize', drawTrendChart);
+
+  var compareBtn = document.getElementById('compareBtn');
+  compareBtn.addEventListener('click', function(){
+    state.compareMode = !state.compareMode;
+    compareBtn.classList.toggle('active', state.compareMode);
+    render();
+  });
+
+  Array.prototype.forEach.call(document.querySelectorAll('.moment-btn'), function(btn){
+    btn.addEventListener('click', function(){ goToDate(btn.dataset.date); });
+  });
+
+  // Raccourcis clavier : ␣ lecture/pause, ←→ heure, ↑↓ jour — sauf si le focus est déjà
+  // sur un contrôle natif (select/slider), qui gère ses propres flèches.
+  window.addEventListener('keydown', function(e){
+    var tag = (document.activeElement && document.activeElement.tagName) || '';
+    if (tag === 'SELECT' || tag === 'INPUT' || tag === 'TEXTAREA') return;
+    if (e.code === 'Space'){ e.preventDefault(); togglePlay(); }
+    else if (e.code === 'ArrowRight'){ e.preventDefault(); stepHour(1); }
+    else if (e.code === 'ArrowLeft'){ e.preventDefault(); stepHour(-1); }
+    else if (e.code === 'ArrowUp'){ e.preventDefault(); stepDay(1); }
+    else if (e.code === 'ArrowDown'){ e.preventDefault(); stepDay(-1); }
+  });
+
+  // --- Synchro générale MapLibre → deck.gl : couvre le vol d'ouverture, la rotation au repos,
+  // ET les boutons de la boussole/zoom (qui déplacent la caméra MapLibre directement, sans passer
+  // par le contrôleur de deck.gl) — dans tous ces cas, deck.gl doit suivre.
+  function pushToDeck(){ deckgl.setProps({ viewState: currentViewState }); }
+  maplibreMap.on('move', function(){
+    var c = maplibreMap.getCenter();
+    currentViewState = {
+      longitude: c.lng, latitude: c.lat, zoom: maplibreMap.getZoom(),
+      pitch: maplibreMap.getPitch(), bearing: maplibreMap.getBearing()
+    };
+    pushToDeck();
+  });
+  maplibreMap.on('moveend', function(){ flying = false; });
+  maplibreMap.on('load', function(){
+    setTimeout(function(){
+      maplibreMap.flyTo({
+        center: center, zoom: zoom, pitch: 55, bearing: -15,
+        duration: 3400, curve: 1.2, essential: true
+      });
+    }, 350);
+  });
+
+  // --- Rotation lente au repos (façon "showreel"), UNIQUEMENT avant la toute première
+  // interaction — dès que l'utilisateur touche à la caméra, elle s'arrête pour de bon.
+  var mapCardEl = document.getElementById('mapCard');
+  // Phase de capture : les boutons de la boussole/zoom stoppent la propagation de leur clic,
+  // donc un écouteur classique (phase de bulles) sur #mapCard ne les verrait jamais passer.
+  ['pointerdown', 'wheel'].forEach(function(evt){
+    mapCardEl.addEventListener(evt, function(){ userInteracted = true; }, { capture: true, passive: true });
+  });
+  function idleRotateLoop(){
+    requestAnimationFrame(idleRotateLoop);
+    if (flying || userInteracted) return;
+    maplibreMap.jumpTo({ bearing: maplibreMap.getBearing() + 0.035 });
+  }
+  requestAnimationFrame(idleRotateLoop);
+}
+
+function togglePlay(){
+  state.playing = !state.playing;
+  var btn = document.getElementById('playBtn');
+  if (state.playing){
+    btn.innerHTML = '<span class="icon-inline">' + iconHTML('icoPause') + '</span> Pause';
+    state.playTimer = setInterval(function(){
+      state.hourIdx++;
+      if (state.hourIdx > 23){
+        state.hourIdx = 0;
+        state.dayIdx = (state.dayIdx + 1) % meta.nDays;
+        document.getElementById('daySelect').value = state.dayIdx;
+        drawTrendChart();
+      }
+      var slider = document.getElementById('hourSlider');
+      slider.value = state.hourIdx;
+      updateSliderFill(slider);
+      render();
+    }, 600);
+  } else {
+    btn.innerHTML = '<span class="icon-inline">' + iconHTML('icoPlay') + '</span> Lecture';
+    clearInterval(state.playTimer);
+  }
+}
+
+Promise.all([
+  fetch('meta.json').then(function(r){ return r.json(); }),
+  fetch('milano-grid-wgs84.geojson').then(function(r){ return r.json(); }),
+  fetch('traffic.bin').then(function(r){ return r.arrayBuffer(); }),
+  fetch('anomaly.bin').then(function(r){ return r.arrayBuffer(); })
+]).then(function(results){
+  meta = results[0];
+  geojson = results[1];
+  trafficArr = new Uint16Array(results[2]);
+  anomalyArr = new Uint8Array(results[3]);
+
+  var idToIdx = {};
+  meta.gridIds.forEach(function(id, i){ idToIdx[id] = i; });
+  geojson.features.forEach(function(f){ f.properties.__idx = idToIdx[f.properties.cellId]; });
+
+  typicalArr = computeTypicalProfiles();
+  init();
+}).catch(function(err){
+  document.getElementById('loading').innerHTML =
+    '<div style="color:#e3383f; max-width:420px; text-align:center;">Erreur de chargement : ' + err.message +
+    '<br><br>Ouvre ce fichier via un serveur local (ex. extension "Live Server" de VS Code) — ' +
+    'le chargement des données ne fonctionne pas en double-cliquant directement sur le fichier (file://).</div>';
+  console.error(err);
+});
+
+})();
+</script>
+</body>
+</html>
