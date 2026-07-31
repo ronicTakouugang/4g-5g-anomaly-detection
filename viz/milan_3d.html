@@ -588,7 +588,7 @@ function init(){
   var fitZoom = zoomToFit(bbox, mapEl.clientWidth - padPx * 2, mapEl.clientHeight - padPx * 2);
   var zoom = fitZoom - 0.6; // léger dézoom pour compenser la caméra inclinée (pitch)
   var finalView = { longitude: center[0], latitude: center[1], zoom: zoom, pitch: 55, bearing: -15 };
-  var startView = { longitude: center[0], latitude: center[1], zoom: Math.max(zoom - 3.2, 1), pitch: 0, bearing: 0 };
+  var startView = { longitude: center[0], latitude: center[1], zoom: 0.35, pitch: 0, bearing: 0 };
 
   // Caméra en mode "controlled" (currentViewState toujours fourni explicitement) : c'est ce qui
   // permet de la piloter par programme (vol d'ouverture, rotation lente au repos) tout en gardant
@@ -600,7 +600,11 @@ function init(){
     container: 'map',
     style: 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json',
     center: [startView.longitude, startView.latitude], zoom: startView.zoom,
-    pitch: startView.pitch, bearing: startView.bearing, antialias: true, attributionControl: false
+    pitch: startView.pitch, bearing: startView.bearing, antialias: true, attributionControl: false,
+    // Vue "globe" au tout début (Terre courbe visible) : MapLibre bascule tout seul en
+    // projection Mercator plate une fois qu'on est assez zoomé sur la ville — pas besoin
+    // de piloter la transition à la main.
+    projection: 'globe'
   });
   // Boussole + zoom cliquables : le moyen "visible" de pivoter/incliner la vue, en plus du
   // clic droit + glisser (ou Ctrl + glisser) sur la carte elle-même.
@@ -707,8 +711,11 @@ function init(){
   maplibreMap.on('load', function(){
     setTimeout(function(){
       maplibreMap.flyTo({
+        // Du globe entier jusqu'à la ville : trajet bien plus long qu'avant (~10 niveaux de
+        // zoom au lieu de ~3), d'où une durée allongée. curve abaissé car on part déjà du
+        // point le plus dézoomé possible — inutile de "s'éloigner encore" façon Google Earth.
         center: center, zoom: zoom, pitch: 55, bearing: -15,
-        duration: 3400, curve: 1.2, essential: true
+        duration: 5200, curve: 1.05, essential: true
       });
     }, 350);
   });
