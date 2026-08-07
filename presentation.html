@@ -749,7 +749,7 @@
           <span class="l">Lecture par jour de semaine trompeuse — 1&nbsp;570 des 2&nbsp;484 anomalies tombent un mercredi, mais le 1ᵉʳ janvier et le 25 décembre étaient tous deux des mercredis. Avec 6 à 8 occurrences par jour de semaine sur 52 jours, une coïncidence suffit à fausser la lecture.</span>
         </div>
         <div class="row row-wrap">
-          <span class="l">Un seul canal sur trois — Internet, sans recoupement avec SMS ou appels ; une anomalie confirmée sur les trois signaux serait plus fiable qu'une anomalie isolée.</span>
+          <span class="l">Un seul canal analysé jusqu'ici — Internet, sans recoupement avec SMS ou appels ; une anomalie confirmée sur plusieurs signaux serait plus fiable qu'une anomalie isolée (panneau "Trois signaux valent mieux qu'un" plus loin).</span>
         </div>
         <div class="row row-wrap">
           <span class="l">Seuil z&nbsp;&gt;&nbsp;3 fixé a priori — jamais comparé à d'autres seuils ni validé par validation croisée sur une période de référence connue.</span>
@@ -816,20 +816,65 @@
     </div>
   </section>
 
+  <section class="panel" id="p-multichannel" data-tag="MULTI-CANAL">
+    <div class="panel-inner">
+      <div class="eyebrow">14 — Trois signaux valent mieux qu'un</div>
+      <h2 class="panel-title">Une anomalie confirmée sur deux canaux n'est presque jamais un faux positif</h2>
+      <div class="split">
+        <div>
+          <p class="panel-lede">
+            Le dataset contient deux autres signaux&nbsp;: SMS et appels. Même pipeline —
+            encodage, référence, distance, z-score — appliqué indépendamment à chacun. Mais un
+            seuil ne se transporte pas tel quel d'un canal à l'autre&nbsp;: SMS et appels sont
+            beaucoup plus rares et en rafale que le trafic Internet, donc chacun est recalibré
+            séparément avec la même méthode (percentiles de son propre rapport valeur/médiane).
+          </p>
+        </div>
+        <div>
+          <p class="panel-lede">
+            Trois détections indépendantes, un même jour et une même grid&nbsp;: si les trois
+            s'accordent, la coïncidence est peu probable. C'est exactement le même principe que
+            la double fenêtre longue/courte — sauf qu'ici les voies qui se confirment sont des
+            <em>canaux</em> plutôt que des échelles de temps.
+          </p>
+        </div>
+      </div>
+
+      <div class="spec-table">
+        <table>
+          <thead>
+            <tr><th>Canal</th><th>Anomalies détectées</th><th>Correspondance calendaire</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Internet</td><td>2&nbsp;484 (0,48&nbsp;%)</td><td>86,8&nbsp;%</td></tr>
+            <tr><td>SMS</td><td>4&nbsp;755 (0,91&nbsp;%)</td><td>92,8&nbsp;%</td></tr>
+            <tr><td>Appels</td><td>6&nbsp;468 (1,24&nbsp;%)</td><td>97,6&nbsp;%</td></tr>
+            <tr><td><strong>Confirmées sur 2 canaux ou plus</strong></td><td><strong>2&nbsp;062</strong></td><td><strong>99,2&nbsp;%</strong></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="footnote">
+        11&nbsp;440 journées-grid signalées par au moins un canal ; seules 2&nbsp;062 (18&nbsp;%)
+        le sont sur deux canaux ou plus, et 205 sur les trois à la fois — le noyau dur des
+        anomalies les plus incontestables du dataset.
+      </p>
+    </div>
+  </section>
+
   <section class="panel" id="p-next" data-tag="SUITE">
     <div class="panel-inner">
-      <div class="eyebrow">14 — Ce qu'il reste</div>
+      <div class="eyebrow">15 — Ce qu'il reste</div>
       <h2 class="panel-title">13&nbsp;% de résidu, et une feuille de route</h2>
       <p class="panel-lede">
         327&nbsp;anomalies ne collent à aucun événement connu — dont 76&nbsp;grids le
         29&nbsp;décembre, sans explication évidente. De quoi nourrir la suite&nbsp;:
       </p>
       <ol class="roadmap">
-        <li><span class="idx">R&#8202;·&#8202;01</span><span class="txt"><b>Multi-canal</b> — répéter le pipeline sur SMS et appels, combiner les trois signaux.</span></li>
-        <li><span class="idx">R&#8202;·&#8202;02</span><span class="txt"><b>Creuser le résidu</b> — voir si les anomalies sans étiquette se concentrent sur des grids ou des zones précises.</span></li>
-        <li><span class="idx">R&#8202;·&#8202;03</span><span class="txt"><b>Segmentation spatiale</b> — clustering des profils horaires pour distinguer quartiers d'affaires, résidentiels, loisirs.</span></li>
-        <li><span class="idx">R&#8202;·&#8202;04</span><span class="txt"><b>Benchmark</b> — comparer à un Isolation Forest ou un z-score brut, pour chiffrer l'apport de l'approche signature.</span></li>
-        <li><span class="idx">R&#8202;·&#8202;05</span><span class="txt"><b>Fenêtre courte affinée</b> — réduire le bruit des 13&nbsp;591 incidents à 6h pour en faire un vrai signal temps réel, pas seulement un confirmateur.</span></li>
+        <li><span class="idx">R&#8202;·&#8202;01</span><span class="txt"><b>Creuser le résidu</b> — voir si les anomalies sans étiquette se concentrent sur des grids ou des zones précises.</span></li>
+        <li><span class="idx">R&#8202;·&#8202;02</span><span class="txt"><b>Segmentation spatiale</b> — clustering des profils horaires pour distinguer quartiers d'affaires, résidentiels, loisirs.</span></li>
+        <li><span class="idx">R&#8202;·&#8202;03</span><span class="txt"><b>Benchmark</b> — comparer à un Isolation Forest ou un z-score brut, pour chiffrer l'apport de l'approche signature.</span></li>
+        <li><span class="idx">R&#8202;·&#8202;04</span><span class="txt"><b>Fenêtre courte affinée</b> — réduire le bruit des 13&nbsp;591 incidents à 6h pour en faire un vrai signal temps réel, pas seulement un confirmateur.</span></li>
+        <li><span class="idx">R&#8202;·&#8202;05</span><span class="txt"><b>Fenêtre glissante multi-canal</b> — étendre la détection heure par heure à SMS et appels, pas seulement au trafic Internet.</span></li>
       </ol>
       <div class="colophon">
         <span class="mono">Dataset — Telecom Italia Big Data Challenge, Milano (ODbL, Harvard Dataverse)</span>

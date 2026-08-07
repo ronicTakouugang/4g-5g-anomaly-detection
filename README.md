@@ -1,13 +1,16 @@
 # 4G/5G Anomaly Detection — Milan
 
-Détection d'anomalies dans le trafic Internet mobile de la ville de Milan, à
-partir du dataset **Telecom Italia Big Data Challenge**. L'approche encode le
-profil horaire de trafic de chaque zone en une signature façon "ADN", compare
-chaque journée à un profil de référence via la distance de Damerau-Levenshtein,
-puis calcule un score z pour isoler les jours anormaux — inspirée du framework
-académique **DiNATrAX** (Maudoux & Boumerdassi, IEEE ICC 2024). Les anomalies
-détectées sont ensuite recoupées avec un calendrier d'événements (jours fériés,
-matchs à San Siro) et explorables sur un tableau de bord 3D.
+Détection d'anomalies dans le trafic mobile (Internet, SMS, appels) de la
+ville de Milan, à partir du dataset **Telecom Italia Big Data Challenge**.
+L'approche encode le profil horaire de trafic de chaque zone en une signature
+façon "ADN", compare chaque journée à un profil de référence via la distance
+de Damerau-Levenshtein, puis calcule un score z pour isoler les jours
+anormaux — inspirée du framework académique **DiNATrAX** (Maudoux &
+Boumerdassi, IEEE ICC 2024). Le pipeline tourne indépendamment sur les trois
+canaux ; une anomalie confirmée simultanément sur plusieurs canaux est
+nettement plus fiable qu'une anomalie isolée. Les anomalies détectées sont
+ensuite recoupées avec un calendrier d'événements (jours fériés, matchs à San
+Siro) et explorables sur un tableau de bord 3D.
 
 ![Dashboard 3D — trafic et anomalies détectées](docs/screenshot.jpg)
 
@@ -29,6 +32,11 @@ matchs à San Siro) et explorables sur un tableau de bord 3D.
   calendrier construit à la main (jours fériés italiens, matchs à domicile de
   l'AC Milan et de l'Inter à San Siro) pour distinguer une anomalie expliquée
   d'un signal réellement inattendu.
+- **Multi-canal** : le même pipeline tourne indépendamment sur Internet, SMS
+  et appels (chacun avec ses propres seuils de nomenclature, calibrés
+  séparément car les trois signaux ont des dynamiques très différentes). Une
+  anomalie confirmée sur 2 canaux ou plus atteint 99,2 % de correspondance
+  calendaire, contre 87–98 % pour un canal isolé.
 - **Dashboard 3D interactif** (`viz/milan_3d.html`) : carte 3D de Milan
   (deck.gl + MapLibre GL JS) avec navigation jour/heure, lecture automatique,
   mode de comparaison au profil normal (silhouette superposée), et anomalies
