@@ -152,7 +152,7 @@
   <div class="pulse-mark">
     <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="1" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="9" width="6" height="6" rx="1.5"/><rect x="17" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="17" width="6" height="6" rx="1.5" opacity="0.35"/></svg>
   </div>
-  <div>Chargement des données (~25 Mo)…</div>
+  <div>Chargement des données (~38 Mo)…</div>
 </div>
 
 <div id="app" style="display:none;">
@@ -163,7 +163,7 @@
       </div>
       <div>
         <h1 class="display">Milano — trafic &amp; anomalies</h1>
-        <div class="sub">Détection inspirée de DiNATrAX · nov. 2013 → janv. 2014</div>
+        <div class="sub">Détection inspirée de DiNATrAX · fenêtre glissante 24h · nov. 2013 → janv. 2014</div>
       </div>
     </div>
     <div class="badge"><span class="dot"></span> <b id="badgeDate">–</b>&nbsp;·&nbsp;<span id="badgeHour">–</span></div>
@@ -172,7 +172,7 @@
   <div id="layout">
     <div id="sidebar">
       <div class="card stat anomaly">
-        <div class="l">Anomalies ce jour</div>
+        <div class="l">Incidents actifs (heure sél.)</div>
         <div class="v mono" id="statAnomaly">–</div>
         <div class="foot"><span class="pin" id="statEvent"></span></div>
       </div>
@@ -185,11 +185,12 @@
         <div class="panel-title" style="padding:0;">Intensité du trafic</div>
         <div class="ramp"></div>
         <div class="ramp-labels"><span>faible</span><span>fort</span></div>
-        <div class="swatch-row"><span class="swatch" style="background:#e3383f;"></span> grid en anomalie ce jour</div>
+        <div class="swatch-row"><span class="swatch" style="background:#ff5a46;"></span> confirmé (fenêtres 24h + 6h)</div>
+        <div class="swatch-row"><span class="swatch" style="background:#e3383f;"></span> détecté (fenêtre 24h glissante)</div>
         <div class="swatch-row"><span class="swatch" style="background:#0d9488;"></span> activité normale</div>
       </div>
       <div class="card" id="trendCard">
-        <div class="panel-title">Anomalies par jour (clic = y aller)</div>
+        <div class="panel-title">Grids touchées par jour (clic = y aller)</div>
         <div id="trendChart"><svg id="trendSvg"></svg></div>
       </div>
     </div>
@@ -270,7 +271,7 @@ var KNOWN_EVENTS = {
 };
 
 var state = { dayIdx: 0, hourIdx: 12, playing: false, playTimer: null, compareMode: false };
-var meta, geojson, trafficArr, anomalyArr, typicalArr, deckgl, maplibreMap;
+var meta, geojson, trafficArr, hourlyAnomalyArr, typicalArr, deckgl, maplibreMap;
 var dailyAnomalyCounts = [];   // 1 valeur par jour
 var lightingEffect;
 
@@ -309,8 +310,11 @@ function rampColor(t){
 function getValue(dayIdx, hourIdx, gridIdx){
   return trafficArr[(dayIdx * meta.nHours + hourIdx) * meta.nGrids + gridIdx] / 10;
 }
-function isAnomaly(dayIdx, gridIdx){
-  return anomalyArr[dayIdx * meta.nGrids + gridIdx] === 1;
+// 0 = normal, 1 = anomalie détectée par la fenêtre glissante 24h, 2 = confirmée par la fenêtre
+// courte (6h) au même instant — la détection en fenêtre glissante fait qu'un grid ne "s'allume"
+// qu'à l'heure réelle où le seuil est franchi, pas depuis minuit comme avec un flag par jour.
+function anomalyState(dayIdx, hourIdx, gridIdx){
+  return hourlyAnomalyArr[(dayIdx * meta.nHours + hourIdx) * meta.nGrids + gridIdx];
 }
 
 // Profil "normal" par (jour de semaine, heure, grid) = médiane de toutes les journées de ce
@@ -366,18 +370,23 @@ function buildLayer(){
     extruded: true,
     filled: true,
     stroked: true,
-    getLineColor: function(f){ return isAnomaly(dayIdx, f.properties.__idx) ? [255,150,150,255] : [6,15,13,90]; },
-    getLineWidth: function(f){ return isAnomaly(dayIdx, f.properties.__idx) ? 2 : 1; },
+    getLineColor: function(f){
+      var s = anomalyState(dayIdx, hourIdx, f.properties.__idx);
+      return s === 2 ? [255,255,255,255] : s === 1 ? [255,150,150,255] : [6,15,13,90];
+    },
+    getLineWidth: function(f){ return anomalyState(dayIdx, hourIdx, f.properties.__idx) > 0 ? 2 : 1; },
     lineWidthMinPixels: 1,
     material: { ambient: 0.55, diffuse: 0.5, shininess: 18, specularColor: [70, 110, 105] },
     getElevation: function(f){
       var gi = f.properties.__idx;
       var v = getValue(dayIdx, hourIdx, gi);
-      return elevationOf(v, isAnomaly(dayIdx, gi));
+      return elevationOf(v, anomalyState(dayIdx, hourIdx, gi) > 0);
     },
     getFillColor: function(f){
       var gi = f.properties.__idx;
-      if (isAnomaly(dayIdx, gi)) return [227, 56, 63, 240];
+      var s = anomalyState(dayIdx, hourIdx, gi);
+      if (s === 2) return [255, 90, 70, 250];
+      if (s === 1) return [227, 56, 63, 240];
       var v = getValue(dayIdx, hourIdx, gi);
       var c = rampColor(Math.min(1, Math.pow(v, 0.55) / sqrtMax));
       return [c[0], c[1], c[2], 225];
@@ -388,8 +397,8 @@ function buildLayer(){
     updateTriggers: {
       getElevation: [dayIdx, hourIdx],
       getFillColor: [dayIdx, hourIdx],
-      getLineColor: [dayIdx],
-      getLineWidth: [dayIdx]
+      getLineColor: [dayIdx, hourIdx],
+      getLineWidth: [dayIdx, hourIdx]
     },
     transitions: {
       getElevation: { duration: 550, easing: t => 1 - Math.pow(1 - t, 3) },
@@ -433,7 +442,7 @@ function render(){
 function updateStats(){
   var count = 0, total = 0;
   for (var i = 0; i < meta.nGrids; i++){
-    if (isAnomaly(state.dayIdx, i)) count++;
+    if (anomalyState(state.dayIdx, state.hourIdx, i) > 0) count++;
     total += getValue(state.dayIdx, state.hourIdx, i);
   }
   animateNumber('anomaly', document.getElementById('statAnomaly'), prevAnomalyCount, count, 500);
@@ -479,12 +488,19 @@ function populateDaySelect(){
   sel.value = state.dayIdx;
 }
 
+// Compte, par jour, le nombre de grids touchées par au moins une heure d'anomalie (union sur
+// les 24h) — un résumé journalier utile même si la détection elle-même est maintenant horaire.
 function computeDailyAnomalyCounts(){
   dailyAnomalyCounts = new Array(meta.nDays).fill(0);
+  var nHours = meta.nHours, nGrids = meta.nGrids;
   for (var d = 0; d < meta.nDays; d++){
     var c = 0;
-    var base = d * meta.nGrids;
-    for (var i = 0; i < meta.nGrids; i++) if (anomalyArr[base + i] === 1) c++;
+    var dayBase = d * nHours * nGrids;
+    for (var i = 0; i < nGrids; i++){
+      for (var h = 0; h < nHours; h++){
+        if (hourlyAnomalyArr[dayBase + h * nGrids + i] > 0){ c++; break; }
+      }
+    }
     dailyAnomalyCounts[d] = c;
   }
 }
@@ -644,12 +660,13 @@ function init(){
       if (!info.object) return null;
       var gi = info.object.properties.__idx;
       var v = getValue(state.dayIdx, state.hourIdx, gi);
-      var anom = isAnomaly(state.dayIdx, gi);
+      var s = anomalyState(state.dayIdx, state.hourIdx, gi);
+      var label = s === 2 ? 'anomalie confirmée (fenêtres 24h + 6h)' : s === 1 ? 'anomalie détectée (fenêtre 24h glissante)' : '';
       return {
         html: '<span style="color:#5eead4;font-weight:600;">Grid ' + info.object.properties.cellId + '</span><br>' +
               'Trafic Internet : ' + v.toFixed(1) + '<br>' +
-              (anom ? '<span style="color:#ff7b80;font-weight:700;display:inline-flex;align-items:center;gap:0.3em;">' +
-                      '<span class="icon-inline" style="vertical-align:-1px;">' + iconHTML('icoAlert') + '</span> anomalie détectée ce jour</span>' : 'activité normale'),
+              (s > 0 ? '<span style="color:#ff7b80;font-weight:700;display:inline-flex;align-items:center;gap:0.3em;">' +
+                      '<span class="icon-inline" style="vertical-align:-1px;">' + iconHTML('icoAlert') + '</span> ' + label + '</span>' : 'activité normale'),
         style: {
           backgroundColor: '#0c1614', border: '1px solid #1c2e2a', borderRadius: '8px',
           padding: '0.55rem 0.75rem', fontSize: '0.78rem', color: '#eef0f3',
@@ -764,12 +781,12 @@ Promise.all([
   fetch('meta.json').then(function(r){ return r.json(); }),
   fetch('milano-grid-wgs84.geojson').then(function(r){ return r.json(); }),
   fetch('traffic.bin').then(function(r){ return r.arrayBuffer(); }),
-  fetch('anomaly.bin').then(function(r){ return r.arrayBuffer(); })
+  fetch('anomaly_hourly.bin').then(function(r){ return r.arrayBuffer(); })
 ]).then(function(results){
   meta = results[0];
   geojson = results[1];
   trafficArr = new Uint16Array(results[2]);
-  anomalyArr = new Uint8Array(results[3]);
+  hourlyAnomalyArr = new Uint8Array(results[3]);
 
   var idToIdx = {};
   meta.gridIds.forEach(function(id, i){ idToIdx[id] = i; });
