@@ -14,8 +14,11 @@ matchs à San Siro) et explorables sur un tableau de bord 3D.
 ## Fonctionnalités
 
 - **Encodage en signatures** : le trafic Internet horaire de chaque grille est
-  discrétisé en quantiles (6 niveaux, A à F) pour former une séquence de 24
-  lettres par jour, comparable d'un jour à l'autre.
+  encodé en 6 niveaux (A à F), chacun correspondant à un multiple fixe et
+  publié de la médiane horaire de la grille (seuils calibrés sur les
+  percentiles réels du dataset, de < 0,43× à > 2,1×), pour former une
+  séquence de 24 lettres par jour, comparable d'une grille à l'autre et
+  sensible aux variations d'amplitude du trafic.
 - **Détection par distance d'édition** : chaque séquence journalière est
   comparée, via la distance de Damerau-Levenshtein, à un profil de référence
   construit par consensus sur les autres jours de la même grille et du même
@@ -42,7 +45,7 @@ sms-call-internet-mi-*.txt (62 fichiers, ~4M lignes chacun)
   agrégation par (grille, jour, heure) — trafic Internet total
         │
         ▼
-  encodage en signature de 24 lettres (quantiles horaires, A→F)
+  encodage en signature de 24 lettres (multiples de la médiane horaire, A→F)
         │
         ▼
   profil de référence par (grille, jour de semaine) — consensus lettre à lettre
@@ -84,7 +87,9 @@ sms-call-internet-mi-*.txt (62 fichiers, ~4M lignes chacun)
 │   ├── milan_3d.html            dashboard 3D
 │   ├── milano-grid-wgs84.geojson géométrie des grilles (reprojetée WGS84)
 │   ├── traffic.bin               trafic horaire par grille (binaire compact)
-│   ├── anomaly.bin               flags d'anomalie par (jour, grille)
+│   ├── anomaly.bin               flags d'anomalie par (jour, grille) — méthode bloc journalier
+│   ├── anomaly_hourly.bin        état par (jour, heure, grille) — méthode fenêtre glissante,
+│   │                              utilisé par le dashboard
 │   └── meta.json                 dates, identifiants de grille, dimensions
 ├── presentation.html            présentation scrollytelling du projet
 ├── docs/
