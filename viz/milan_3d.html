@@ -152,7 +152,7 @@
   <div class="pulse-mark">
     <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18"><rect x="1" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="1" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="9" width="6" height="6" rx="1.5"/><rect x="17" y="9" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="1" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="9" y="17" width="6" height="6" rx="1.5" opacity="0.35"/><rect x="17" y="17" width="6" height="6" rx="1.5" opacity="0.35"/></svg>
   </div>
-  <div>Chargement des données (~38 Mo)…</div>
+  <div>Chargement des données (~41 Mo — SMS et appels se chargent à la demande)…</div>
 </div>
 
 <div id="app" style="display:none;">
@@ -179,7 +179,7 @@
       <div class="card stat traffic">
         <div class="l">Trafic total (heure sél.)</div>
         <div class="v mono" id="statTraffic">–</div>
-        <div class="foot">CDR Internet cumulés, 10 000 grids</div>
+        <div class="foot"><span id="statTrafficFoot">CDR Internet cumulés</span>, 10 000 grids</div>
       </div>
       <div class="card" id="legendCard">
         <div class="panel-title" style="padding:0;">Intensité du trafic</div>
@@ -203,6 +203,14 @@
         <div class="rotate-hint mono"><i data-lucide="rotate-3d"></i> clic droit + glisser (ou Ctrl + glisser) : pivoter / incliner</div>
       </div>
       <div class="card" id="controls">
+        <div class="ctrl-group">
+          <span class="ctrl-label">Canal</span>
+          <select id="channelSelect">
+            <option value="internet">Internet</option>
+            <option value="sms">SMS</option>
+            <option value="call">Appels</option>
+          </select>
+        </div>
         <div class="ctrl-group">
           <span class="ctrl-label">Jour</span>
           <button class="icon" id="prevDay"><i data-lucide="chevron-left"></i></button>
@@ -270,10 +278,14 @@ var KNOWN_EVENTS = {
   "2014-01-01": "Nouvel An (jour férié)"
 };
 
-var state = { dayIdx: 0, hourIdx: 12, playing: false, playTimer: null, compareMode: false };
-var meta, geojson, trafficArr, hourlyAnomalyArr, typicalArr, deckgl, maplibreMap;
-var dailyAnomalyCounts = [];   // 1 valeur par jour
+var CHANNEL_LABELS = { internet: 'Internet', sms: 'SMS', call: 'Appels' };
+
+var state = { dayIdx: 0, hourIdx: 12, playing: false, playTimer: null, compareMode: false, channel: 'internet' };
+var meta, geojson, deckgl, maplibreMap;
+var channelCache = {};   // canal -> { traffic: Uint16Array, anomaly: Uint8Array, typical: Float32Array, dailyCounts: [] }
 var lightingEffect;
+
+function currentChannel(){ return channelCache[state.channel]; }
 
 function fmt(n){ return Math.round(n).toLocaleString('fr-FR'); }
 
@@ -308,19 +320,19 @@ function rampColor(t){
 }
 
 function getValue(dayIdx, hourIdx, gridIdx){
-  return trafficArr[(dayIdx * meta.nHours + hourIdx) * meta.nGrids + gridIdx] / 10;
+  return currentChannel().traffic[(dayIdx * meta.nHours + hourIdx) * meta.nGrids + gridIdx] / 10;
 }
 // 0 = normal, 1 = anomalie détectée par la fenêtre glissante 24h, 2 = confirmée par la fenêtre
 // courte (6h) au même instant — la détection en fenêtre glissante fait qu'un grid ne "s'allume"
 // qu'à l'heure réelle où le seuil est franchi, pas depuis minuit comme avec un flag par jour.
 function anomalyState(dayIdx, hourIdx, gridIdx){
-  return hourlyAnomalyArr[(dayIdx * meta.nHours + hourIdx) * meta.nGrids + gridIdx];
+  return currentChannel().anomaly[(dayIdx * meta.nHours + hourIdx) * meta.nGrids + gridIdx];
 }
 
 // Profil "normal" par (jour de semaine, heure, grid) = médiane de toutes les journées de ce
 // jour de semaine — le même calcul que la référence du notebook, mais en valeurs numériques
 // directement comparables au trafic réel, pour l'affichage en silhouette de comparaison.
-function computeTypicalProfiles(){
+function computeTypicalProfilesFor(trafficArr){
   var nGrids = meta.nGrids, nHours = meta.nHours;
   var byWeekday = [[], [], [], [], [], [], []];
   meta.dates.forEach(function(d, i){
@@ -352,7 +364,7 @@ function computeTypicalProfiles(){
 
 function getTypicalValue(dayIdx, hourIdx, gridIdx){
   var wd = new Date(meta.dates[dayIdx] + 'T12:00:00').getDay();
-  return typicalArr[(wd * meta.nHours + hourIdx) * meta.nGrids + gridIdx] / 10;
+  return currentChannel().typical[(wd * meta.nHours + hourIdx) * meta.nGrids + gridIdx] / 10;
 }
 
 function elevationOf(v, anomalous){
@@ -362,7 +374,7 @@ function elevationOf(v, anomalous){
 
 function buildLayer(){
   var dayIdx = state.dayIdx, hourIdx = state.hourIdx;
-  var maxV = meta.maxValue / 10;
+  var maxV = meta.maxValues[state.channel] / 10;
   var sqrtMax = Math.pow(maxV, 0.55);
   return new deck.GeoJsonLayer({
     id: 'grids',
@@ -490,8 +502,8 @@ function populateDaySelect(){
 
 // Compte, par jour, le nombre de grids touchées par au moins une heure d'anomalie (union sur
 // les 24h) — un résumé journalier utile même si la détection elle-même est maintenant horaire.
-function computeDailyAnomalyCounts(){
-  dailyAnomalyCounts = new Array(meta.nDays).fill(0);
+function computeDailyAnomalyCountsFor(hourlyAnomalyArr){
+  var counts = new Array(meta.nDays).fill(0);
   var nHours = meta.nHours, nGrids = meta.nGrids;
   for (var d = 0; d < meta.nDays; d++){
     var c = 0;
@@ -501,8 +513,9 @@ function computeDailyAnomalyCounts(){
         if (hourlyAnomalyArr[dayBase + h * nGrids + i] > 0){ c++; break; }
       }
     }
-    dailyAnomalyCounts[d] = c;
+    counts[d] = c;
   }
+  return counts;
 }
 
 function drawTrendChart(){
@@ -510,6 +523,7 @@ function drawTrendChart(){
   var W = svg.clientWidth || 240, H = svg.clientHeight || 110;
   svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   svg.innerHTML = '';
+  var dailyAnomalyCounts = currentChannel().dailyCounts;
   var max = Math.max.apply(null, dailyAnomalyCounts) || 1;
   var bw = W / dailyAnomalyCounts.length;
   var ns = 'http://www.w3.org/2000/svg';
@@ -541,6 +555,7 @@ function drawHourChart(){
   svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   svg.innerHTML = '';
   var vals = [];
+  var trafficArr = currentChannel().traffic;
   var base = state.dayIdx * meta.nHours * meta.nGrids;
   for (var h = 0; h < 24; h++){
     var sum = 0;
@@ -664,7 +679,7 @@ function init(){
       var label = s === 2 ? 'anomalie confirmée (fenêtres 24h + 6h)' : s === 1 ? 'anomalie détectée (fenêtre 24h glissante)' : '';
       return {
         html: '<span style="color:#5eead4;font-weight:600;">Grid ' + info.object.properties.cellId + '</span><br>' +
-              'Trafic Internet : ' + v.toFixed(1) + '<br>' +
+              'Trafic ' + CHANNEL_LABELS[state.channel] + ' : ' + v.toFixed(1) + '<br>' +
               (s > 0 ? '<span style="color:#ff7b80;font-weight:700;display:inline-flex;align-items:center;gap:0.3em;">' +
                       '<span class="icon-inline" style="vertical-align:-1px;">' + iconHTML('icoAlert') + '</span> ' + label + '</span>' : 'activité normale'),
         style: {
@@ -677,9 +692,23 @@ function init(){
   });
 
   populateDaySelect();
-  computeDailyAnomalyCounts();
   drawTrendChart();
   render();
+
+  var channelSelect = document.getElementById('channelSelect');
+  channelSelect.value = state.channel;
+  channelSelect.addEventListener('change', function(e){
+    var nextChannel = e.target.value;
+    channelSelect.disabled = true;
+    document.getElementById('statTrafficFoot').textContent = 'Chargement…';
+    loadChannel(nextChannel, function(){
+      state.channel = nextChannel;
+      channelSelect.disabled = false;
+      document.getElementById('statTrafficFoot').textContent = 'CDR ' + CHANNEL_LABELS[nextChannel] + ' cumulés';
+      render();
+      drawTrendChart();
+    });
+  });
 
   document.getElementById('daySelect').addEventListener('change', function(e){
     state.dayIdx = parseInt(e.target.value, 10); render(); drawTrendChart();
@@ -777,6 +806,33 @@ function togglePlay(){
   }
 }
 
+// Charge trafic + anomalies d'un canal (fichiers "traffic_<canal>.bin" / "anomaly_hourly_<canal>.bin",
+// sauf pour "internet" qui garde les noms historiques traffic.bin / anomaly_hourly.bin) et met en
+// cache le résultat — chargement à la demande : seul le canal Internet est chargé au démarrage,
+// les deux autres (~38 Mo à eux deux) n'arrivent qu'au premier changement de canal.
+function loadChannel(channel, cb){
+  if (channelCache[channel]){ cb(); return; }
+  var trafficFile = channel === 'internet' ? 'traffic.bin' : 'traffic_' + channel + '.bin';
+  var anomalyFile = channel === 'internet' ? 'anomaly_hourly.bin' : 'anomaly_hourly_' + channel + '.bin';
+  Promise.all([
+    fetch(trafficFile).then(function(r){ return r.arrayBuffer(); }),
+    fetch(anomalyFile).then(function(r){ return r.arrayBuffer(); })
+  ]).then(function(results){
+    var traffic = new Uint16Array(results[0]);
+    var anomaly = new Uint8Array(results[1]);
+    channelCache[channel] = {
+      traffic: traffic,
+      anomaly: anomaly,
+      typical: computeTypicalProfilesFor(traffic),
+      dailyCounts: computeDailyAnomalyCountsFor(anomaly)
+    };
+    cb();
+  }).catch(function(err){
+    document.getElementById('statTrafficFoot').textContent = 'Erreur de chargement';
+    console.error(err);
+  });
+}
+
 Promise.all([
   fetch('meta.json').then(function(r){ return r.json(); }),
   fetch('milano-grid-wgs84.geojson').then(function(r){ return r.json(); }),
@@ -785,14 +841,19 @@ Promise.all([
 ]).then(function(results){
   meta = results[0];
   geojson = results[1];
-  trafficArr = new Uint16Array(results[2]);
-  hourlyAnomalyArr = new Uint8Array(results[3]);
+  var traffic = new Uint16Array(results[2]);
+  var anomaly = new Uint8Array(results[3]);
+  channelCache.internet = {
+    traffic: traffic,
+    anomaly: anomaly,
+    typical: computeTypicalProfilesFor(traffic),
+    dailyCounts: computeDailyAnomalyCountsFor(anomaly)
+  };
 
   var idToIdx = {};
   meta.gridIds.forEach(function(id, i){ idToIdx[id] = i; });
   geojson.features.forEach(function(f){ f.properties.__idx = idToIdx[f.properties.cellId]; });
 
-  typicalArr = computeTypicalProfiles();
   init();
 }).catch(function(err){
   document.getElementById('loading').innerHTML =

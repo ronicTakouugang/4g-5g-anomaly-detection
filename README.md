@@ -38,9 +38,10 @@ Siro) et explorables sur un tableau de bord 3D.
   anomalie confirmée sur 2 canaux ou plus atteint 99,2 % de correspondance
   calendaire, contre 87–98 % pour un canal isolé.
 - **Dashboard 3D interactif** (`viz/milan_3d.html`) : carte 3D de Milan
-  (deck.gl + MapLibre GL JS) avec navigation jour/heure, lecture automatique,
+  (deck.gl + MapLibre GL JS) avec sélecteur de canal (Internet / SMS /
+  Appels, chargé à la demande), navigation jour/heure, lecture automatique,
   mode de comparaison au profil normal (silhouette superposée), et anomalies
-  mises en évidence par grille.
+  mises en évidence par grille (détectée vs confirmée par les deux fenêtres).
 
 ## Pipeline
 
@@ -92,13 +93,16 @@ sms-call-internet-mi-*.txt (62 fichiers, ~4M lignes chacun)
 ├── eda.ipynb                   pipeline complet : encodage, distance, z-score,
 │                                calendrier, export
 ├── viz/
-│   ├── milan_3d.html            dashboard 3D
+│   ├── milan_3d.html            dashboard 3D (sélecteur Internet / SMS / Appels)
 │   ├── milano-grid-wgs84.geojson géométrie des grilles (reprojetée WGS84)
-│   ├── traffic.bin               trafic horaire par grille (binaire compact)
+│   ├── traffic.bin               trafic horaire par grille, canal Internet (binaire compact)
+│   ├── traffic_sms.bin           idem, canal SMS
+│   ├── traffic_call.bin          idem, canal Appels
 │   ├── anomaly.bin               flags d'anomalie par (jour, grille) — méthode bloc journalier
-│   ├── anomaly_hourly.bin        état par (jour, heure, grille) — méthode fenêtre glissante,
-│   │                              utilisé par le dashboard
-│   └── meta.json                 dates, identifiants de grille, dimensions
+│   ├── anomaly_hourly.bin        état par (jour, heure, grille) — fenêtre glissante, Internet
+│   ├── anomaly_hourly_sms.bin    idem, canal SMS
+│   ├── anomaly_hourly_call.bin   idem, canal Appels
+│   └── meta.json                 dates, identifiants de grille, dimensions, canaux disponibles
 ├── presentation.html            présentation scrollytelling du projet
 ├── docs/
 │   └── screenshot.jpg
