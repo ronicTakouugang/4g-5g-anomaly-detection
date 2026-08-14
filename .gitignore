@@ -17,6 +17,8 @@ rapport/*.log
 rapport/*.out
 rapport/*.run.xml
 rapport/*.toc
+rapport/*.lof
+rapport/*.lot
 rapport/*.fdb_latexmk
 rapport/*.fls
 rapport/*.synctex.gz
