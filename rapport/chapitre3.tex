@@ -43,21 +43,9 @@ fonction vectorisée, appliquée indépendamment à chaque grille~: la
 médiane de la grille est calculée une fois, puis chaque valeur
 horaire est comparée aux seuils de la nomenclature par recherche
 dichotomique (\texttt{numpy.searchsorted}), ce qui évite une boucle
-explicite sur les 24 heures de chaque jour.
-
-\begin{lstlisting}[language=Python, basicstyle=\small\ttfamily, frame=single, caption={Encodage vectorisé d'une série horaire en niveaux A-F}, label={lst:encode}]
-LEVEL_THRESHOLDS = [0.43, 0.63, 1.00, 1.35, 2.10]
-ALPHABET = "ABCDEF"
-
-def encode_levels(values, thresholds=LEVEL_THRESHOLDS):
-    """Encode le trafic horaire d'une grille en niveaux 0..5,
-    relatifs a sa mediane."""
-    median = values.median()
-    if median == 0:
-        return pd.Series(0, index=values.index)
-    ratio = values / median
-    return np.searchsorted(thresholds, ratio, side="right")
-\end{lstlisting}
+explicite sur les 24 heures de chaque jour et permet de traiter les
+10 000 grilles en quelques secondes. L'extrait de code correspondant
+est reproduit en annexe~\ref{annexe:code}.
 
 \section{Réduction de la latence de détection~: fenêtre glissante}
 
@@ -113,6 +101,34 @@ lesquelles on bascule sur un seuil en valeur absolue), et le fait que
 la référence reste calculée hors ligne~: en production, chaque
 évaluation horaire ne coûte qu'une comparaison de deux séquences de
 24 caractères, quasi instantanée.
+
+Appliquée au canal Internet, cette détection horaire produit
+63 407 alertes brutes (une par heure et par grille où le seuil est
+franchi), regroupées en 8 757 incidents distincts après élimination
+des alertes consécutives dues à une même anomalie prolongée -- un
+facteur de regroupement de 7,2 (tableau~\ref{tab:sliding-results}).
+La fenêtre courte (6 h), exécutée en parallèle, détecte 13 591
+incidents, dont 1 529 (17,5~\% des incidents de la fenêtre longue)
+sont confirmés par les deux fenêtres simultanément. Aucune grille du
+jeu de données n'a nécessité le repli en seuil absolu~: toutes
+présentent une variance historique non nulle.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Résultats de la détection par fenêtre glissante (canal Internet)}
+  \label{tab:sliding-results}
+  \begin{tabular}{lc}
+    \toprule
+    \textbf{Indicateur} & \textbf{Valeur} \\
+    \midrule
+    Alertes horaires brutes (avant regroupement) & 63 407 \\
+    Incidents, fenêtre longue (24 h, après regroupement) & 8 757 \\
+    Incidents, fenêtre courte (6 h) & 13 591 \\
+    Incidents confirmés par les deux fenêtres & 1 529 (17,5~\%) \\
+    Grilles ayant nécessité le repli en seuil absolu & 0 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 Le tableau~\ref{tab:latence} illustre le gain obtenu sur l'anomalie la
 plus marquée détectée sur la période -- la grille 1421 le 1\textsuperscript{er}

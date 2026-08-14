@@ -262,10 +262,11 @@ classique en précision/rappel.
 \subsection{Source de données}
 
 Les données proviennent du jeu \emph{Telecom Italia Big Data
-Challenge} (tableau~\ref{tab:dataset}). Pour chaque interaction
-(connexion Internet, SMS, appel), un enregistrement brut comporte un
-horodatage, l'identifiant de la grille géographique concernée et un
-volume d'activité, selon le schéma simplifié du tableau~\ref{tab:schema}.
+Challenge} (tableau~\ref{tab:dataset}), qui regroupe plusieurs types
+de données (télécommunications, météo, réseaux sociaux, actualités,
+consommation électrique) collectées sur la ville de Milan et la
+province du Trentin. Ce travail n'utilise que les données de
+télécommunications de la ville de Milan.
 
 \begin{table}[htbp]
   \centering
@@ -281,26 +282,152 @@ volume d'activité, selon le schéma simplifié du tableau~\ref{tab:schema}.
     Zone couverte & Ville de Milan (grille géographique) \\
     Période couverte & 1\textsuperscript{er} novembre 2013 -- 1\textsuperscript{er} janvier 2014 \\
     Nombre de fichiers & 62 (un par jour) \\
-    Volume par fichier & \textasciitilde{}4 millions de lignes (\textasciitilde{}250 Mo) \\
+    Volume par fichier & \textasciitilde{}4 millions de lignes (\textasciitilde{}200 à 300 Mo) \\
+    Volume total & plus de 240 millions d'observations \\
     Canaux disponibles & Internet, SMS, appels \\
     \bottomrule
   \end{tabular}
 \end{table}
 
+\subsubsection{Description des variables}
+
+Chaque fichier ne comporte pas d'en-tête et se compose de huit
+colonnes, décrites dans le tableau~\ref{tab:variables}.
+
 \begin{table}[htbp]
   \centering
-  \caption{Schéma simplifié des données sources}
-  \label{tab:schema}
-  \begin{tabular}{ll}
+  \caption{Dictionnaire des variables du fichier source}
+  \label{tab:variables}
+  \begin{tabular}{lp{9.5cm}}
     \toprule
-    \textbf{Champ} & \textbf{Description} \\
+    \textbf{Variable} & \textbf{Description} \\
     \midrule
-    gridID     & Identifiant de la grille géographique (1 à 10 000) \\
-    timestamp  & Horodatage de l'interaction (résolution 10 minutes) \\
-    countrycode & Indicatif pays de l'opérateur mobile \\
-    smsin / smsout & Volume de SMS entrants / sortants \\
-    callin / callout & Volume d'appels entrants / sortants \\
-    internet   & Volume de trafic Internet \\
+    Grid ID    & Identifiant de la zone géographique de Milan concernée. \\
+    Time Interval & Début de l'intervalle d'observation (timestamp Unix, en millisecondes). \\
+    SMS-in activity & Volume de SMS reçus durant l'intervalle. \\
+    SMS-out activity & Volume de SMS envoyés durant l'intervalle. \\
+    Call-in activity & Volume d'appels reçus durant l'intervalle. \\
+    Call-out activity & Volume d'appels émis durant l'intervalle. \\
+    Internet traffic activity & Nombre d'enregistrements (CDR) générés par le trafic Internet mobile durant l'intervalle. \\
+    Country code & Indicatif téléphonique international du pays d'origine ou de destination de la communication. \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{Résolution spatiale et temporelle}
+
+Spatialement, Milan est découpée en 10 000 grilles carrées, chacune
+identifiée par un \emph{Grid ID} unique. Temporellement, les données
+sont agrégées par intervalles fixes de 10 minutes~: le champ
+\emph{Time Interval} correspond au début de cet intervalle, exprimé
+en millisecondes depuis le 1\textsuperscript{er} janvier 1970. Par
+exemple, la valeur \texttt{1383260400000} correspond au 1\textsuperscript{er}
+novembre 2013 à 00h00, et représente donc l'activité observée entre
+00h00 et 00h10 dans la grille concernée.
+
+Le tableau~\ref{tab:example-obs} illustre la lecture d'une
+observation~: dans la grille 4456, entre 8h00 et 8h10, 10 SMS ont été
+reçus, 12 envoyés, 5 appels reçus, 7 émis, et 350 enregistrements de
+trafic Internet générés.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Exemple d'observation}
+  \label{tab:example-obs}
+  \begin{tabular}{lccccccc}
+    \toprule
+    \textbf{Grid ID} & \textbf{Date} & \textbf{SMS in} & \textbf{SMS out} & \textbf{Call in} & \textbf{Call out} & \textbf{Internet} & \textbf{Pays} \\
+    \midrule
+    4456 & 01/11/2013 08h00 & 10 & 12 & 5 & 7 & 350 & 39 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsubsection{Valeurs manquantes}
+
+Les cinq colonnes d'activité (SMS entrants/sortants, appels
+entrants/sortants, Internet) présentent un taux de valeurs manquantes
+élevé et très inégal (tableau~\ref{tab:missing}, figure~\ref{fig:missing}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Taux de valeurs manquantes par colonne d'activité}
+  \label{tab:missing}
+  \begin{tabular}{lc}
+    \toprule
+    \textbf{Colonne} & \textbf{Valeurs manquantes} \\
+    \midrule
+    SMS entrants  & 40,91~\% \\
+    Internet      & 51,39~\% \\
+    Appels sortants & 53,92~\% \\
+    SMS sortants  & 66,29~\% \\
+    Appels entrants & 68,75~\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      xbar, bar width=10pt,
+      width=0.72\textwidth, height=5cm,
+      symbolic y coords={Appels entrants,SMS sortants,Appels sortants,Internet,SMS entrants},
+      ytick=data,
+      y tick label style={font=\footnotesize},
+      xmin=0, xmax=80,
+      xlabel={valeurs manquantes (\%)},
+      nodes near coords, nodes near coords style={font=\footnotesize},
+      enlarge y limits=0.18,
+    ]
+      \addplot[fill=parisneutral] coordinates {
+        (40.91,SMS entrants) (51.39,Internet) (53.92,Appels sortants)
+        (66.29,SMS sortants) (68.75,Appels entrants)
+      };
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Taux de valeurs manquantes par colonne d'activité}
+  \label{fig:missing}
+\end{figure}
+
+Il ne s'agit toutefois pas d'un problème de qualité des données~:
+chaque ligne du fichier brut correspond à une combinaison
+\emph{(Grid ID, Time Interval, Country code)}, et ne renseigne que les
+types d'activité réellement observés pour cette combinaison précise
+-- les autres colonnes restent vides faute d'activité de ce type. Ceci
+justifie que l'agrégation utilisée en section~\ref{sec:methodo}
+repose sur une somme qui ignore les valeurs manquantes
+(\texttt{skipna=True}) et les traite comme une absence d'activité
+(zéro), sans perte d'information.
+
+\subsubsection{Statistiques descriptives}
+
+Le tableau~\ref{tab:describe} présente les statistiques descriptives
+des cinq colonnes d'activité, calculées sur un échantillon des
+données. Dans les cinq cas, la moyenne est très supérieure à la
+médiane, et l'écart entre la moyenne et le maximum est considérable~:
+la distribution du trafic est fortement asymétrique à droite -- la
+plupart des observations correspondent à une activité faible, mais
+certaines combinaisons grille/intervalle affichent une activité
+beaucoup plus forte. C'est cette hétérogénéité qui motive un encodage
+\emph{relatif à la médiane de chaque grille} plutôt qu'à une échelle
+absolue commune (section~\ref{sec:methodo}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Statistiques descriptives des variables d'activité (échantillon)}
+  \label{tab:describe}
+  \begin{tabular}{lccccc}
+    \toprule
+    & \textbf{SMS in} & \textbf{SMS out} & \textbf{Call in} & \textbf{Call out} & \textbf{Internet} \\
+    \midrule
+    Moyenne  & 1,61 & 1,73 & 1,73 & 1,43 & 35,04 \\
+    Écart type & 3,43 & 3,85 & 3,61 & 3,50 & 78,70 \\
+    Min      & $\approx$0 & $\approx$0 & $\approx$0 & $\approx$0 & $\approx$0 \\
+    25~\%    & 0,14 & 0,15 & 0,13 & 0,08 & 0,12 \\
+    Médiane  & 0,50 & 0,53 & 0,50 & 0,30 & 7,79 \\
+    75~\%    & 1,62 & 1,70 & 1,75 & 1,19 & 36,33 \\
+    Max      & 234,0 & 295,7 & 191,0 & 187,9 & 4~995,6 \\
     \bottomrule
   \end{tabular}
 \end{table}

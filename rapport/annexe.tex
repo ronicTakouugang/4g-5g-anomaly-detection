@@ -1,0 +1,22 @@
+\chapter*{Annexe A -- Extrait de code}
+\addcontentsline{toc}{chapter}{Annexe A -- Extrait de code}
+\label{annexe:code}
+
+Cette annexe reproduit l'implémentation de la fonction d'encodage
+d'une série de trafic horaire en niveaux A-F (section~\ref{sec:methodo},
+chapitre~\ref{chap:etatart}), citée dans le corps du rapport
+(chapitre~\ref{chap:conception}).
+
+\begin{lstlisting}[language=Python, basicstyle=\small\ttfamily, frame=single, caption={Encodage vectorisé d'une série horaire en niveaux A-F}, label={lst:encode}]
+LEVEL_THRESHOLDS = [0.43, 0.63, 1.00, 1.35, 2.10]
+ALPHABET = "ABCDEF"
+
+def encode_levels(values, thresholds=LEVEL_THRESHOLDS):
+    """Encode le trafic horaire d'une grille en niveaux 0..5,
+    relatifs a sa mediane."""
+    median = values.median()
+    if median == 0:
+        return pd.Series(0, index=values.index)
+    ratio = values / median
+    return np.searchsorted(thresholds, ratio, side="right")
+\end{lstlisting}
