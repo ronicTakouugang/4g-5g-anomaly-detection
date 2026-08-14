@@ -1,0 +1,238 @@
+\chapter{État de l'art et méthodologie}
+\label{chap:etatart}
+
+Ce chapitre situe ce travail par rapport aux approches existantes de
+détection d'anomalies dans les séries temporelles de trafic réseau,
+puis détaille la méthodologie retenue, du prétraitement des données
+brutes jusqu'au calcul du score d'anomalie.
+
+\clearpage
+\section{État de l'art}
+
+\subsection{Approches statistiques et par seuils}
+
+Les premières approches de détection d'anomalies dans des séries
+temporelles reposent sur des méthodes statistiques classiques :
+cartes de contrôle, moyennes mobiles, ou modèles de prévision (par
+exemple ARIMA) dont on surveille le résidu -- l'écart entre la valeur
+observée et la valeur prédite. Une anomalie est alors signalée
+lorsque ce résidu, ou plus simplement la valeur elle-même, dépasse un
+seuil fixé a priori ou calibré statistiquement (par exemple à partir
+de l'écart type de la série). Ces méthodes sont simples à mettre en
+œuvre et à interpréter, mais elles supposent une certaine stationnarité
+du signal et se révèlent sensibles au choix du seuil, ainsi qu'aux
+variations normales (saisonnalité, effets de calendrier) qui peuvent
+être confondues avec de véritables anomalies \parencite{chandola2009anomaly}.
+
+\subsection{Approches par apprentissage automatique}
+
+Les approches par apprentissage automatique cherchent à apprendre
+directement, à partir des données, ce qu'est un comportement
+« normal », sans reposer sur un seuil fixé manuellement. Les méthodes
+non supervisées -- clustering, forêts d'isolement, auto-encodeurs --
+identifient les observations qui s'écartent le plus de la structure
+apprise sur l'ensemble des données, tandis que les approches par
+apprentissage profond (réseaux récurrents, auto-encodeurs séquentiels)
+permettent de capturer des dépendances temporelles plus complexes
+\parencite{chalapathy2019deep}. Ces méthodes sont en général plus
+coûteuses à mettre en œuvre et moins directement interprétables, et
+nécessitent souvent un volume de données d'entraînement important
+pour être fiables.
+
+\subsection{Approches par encodage de signatures et distance d'édition}
+
+Une troisième famille d'approches encode le comportement d'une entité
+(ici, le trafic horaire d'une zone géographique) sous la forme d'une
+séquence symbolique -- une « signature » -- puis mesure l'écart entre
+deux séquences à l'aide d'une distance d'édition, empruntée à
+l'algorithmique des chaînes de caractères. C'est l'approche retenue
+dans le framework DiNATrAX~\parencite{maudoux2024dinatrax}, qui encode
+l'activité d'une entité réseau en une séquence de lettres et détecte
+les anomalies par distance de Damerau-Levenshtein à un profil de
+référence. Cette approche présente trois avantages pour le cas
+étudié~: elle ne nécessite pas de données étiquetées, elle reste
+interprétable (chaque lettre correspond directement à un niveau de
+trafic observable), et elle est sensible aux variations d'amplitude du
+signal -- contrairement à un découpage en quantiles, qui absorbe une
+hausse uniforme du trafic sans faire apparaître de changement de
+signature. C'est cette approche qui a été adaptée et retenue pour ce
+travail.
+
+\clearpage
+\section{Méthodologie}
+
+\subsection{Vue d'ensemble du pipeline}
+
+Le traitement se décompose en six étapes principales, illustrées par
+la figure~\ref{fig:pipeline} : agrégation du trafic brut, encodage en
+signature journalière, construction d'un profil de référence,
+calcul de la distance d'édition, conversion en score z, puis
+recoupement calendaire des anomalies détectées. Ce pipeline est
+exécuté indépendamment sur chacun des trois canaux disponibles
+(Internet, SMS, appels).
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[
+    node distance=6mm,
+    box/.style={rectangle, draw, rounded corners, fill=parisneutral!12,
+                text width=8.4cm, align=center, minimum height=9mm, font=\small},
+    arr/.style={-{Stealth[length=2mm]}, thick}
+  ]
+    \node[box] (a) {Trafic brut par (grille, jour, heure) -- 62 fichiers, \textasciitilde{}4M lignes chacun};
+    \node[box, below=of a] (b) {Encodage en signature de 24 lettres (A-F, multiples de la médiane horaire de la grille)};
+    \node[box, below=of b] (c) {Profil de référence par (grille, jour de semaine) -- consensus lettre à lettre};
+    \node[box, below=of c] (d) {Distance de Damerau-Levenshtein (signature du jour $\leftrightarrow$ profil de référence)};
+    \node[box, below=of d] (e) {Score z par grille -- jour anormal si $z > 3$};
+    \node[box, below=of e] (f) {Recoupement avec le calendrier d'événements (jours fériés, matchs San Siro)};
+    \draw[arr] (a) -- (b);
+    \draw[arr] (b) -- (c);
+    \draw[arr] (c) -- (d);
+    \draw[arr] (d) -- (e);
+    \draw[arr] (e) -- (f);
+  \end{tikzpicture}
+  \caption{Vue d'ensemble du pipeline de détection}
+  \label{fig:pipeline}
+\end{figure}
+
+\subsection{Agrégation du trafic}
+
+Les fichiers sources contiennent, pour chaque interaction (connexion
+Internet, SMS, appel), un horodatage et l'identifiant de la grille
+géographique parmi les 10 000 zones carrées composant le maillage de
+Milan. Ces événements sont agrégés par \emph{(grille, jour, heure)},
+ce qui produit, pour chaque grille et chaque canal, une série
+temporelle horaire de trafic sur toute la période couverte.
+
+\subsection{Encodage en signature journalière}
+
+Pour chaque grille, le trafic horaire est encodé en un niveau discret
+parmi six (tableau~\ref{tab:levels}), exprimé en multiple de la
+médiane horaire \emph{propre à cette grille}. Ce choix rend l'échelle
+relative -- une grille calme et une grille du centre-ville restent
+comparables -- tout en la rendant sensible à l'amplitude du trafic~:
+un doublement uniforme du trafic d'une grille fait basculer ses
+lettres vers des niveaux supérieurs, ce qu'un découpage en quantiles
+ne peut pas détecter. La signature d'une journée est la concaténation
+des 24 lettres, une par heure.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Niveaux de la signature, en multiple de la médiane horaire de la grille}
+  \label{tab:levels}
+  \begin{tabular}{ccl}
+    \toprule
+    \textbf{Lettre} & \textbf{Multiple de la médiane} & \textbf{Signification} \\
+    \midrule
+    A & $< 0{,}43\times$          & Activité très faible -- creux profond \\
+    B & $0{,}43\times$ -- $0{,}63\times$ & Activité faible \\
+    C & $0{,}63\times$ -- $1{,}0\times$  & En dessous du niveau habituel \\
+    D & $1{,}0\times$ -- $1{,}35\times$  & Niveau habituel \\
+    E & $1{,}35\times$ -- $2{,}1\times$  & Activité soutenue \\
+    F & $> 2{,}1\times$           & Pointe d'activité \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Ces seuils ont été calibrés sur les percentiles réels du canal
+Internet (1/5/20/50/80/95/99) plutôt que fixés à des valeurs rondes~:
+cette calibration réduit le nombre de journées détectées comme
+anormales de moitié par rapport à des seuils ronds (0,48~\% contre
+0,98~\% des journées), pour un taux de correspondance calendaire plus
+élevé. Les canaux SMS et appels, dont les dynamiques diffèrent
+sensiblement du canal Internet, sont calibrés séparément selon le même
+principe.
+
+\subsection{Construction du profil de référence}
+
+Pour chaque grille, un profil de référence est construit \emph{par
+jour de semaine} (tous les mardis, tous les mercredis, etc.)~: à
+chaque heure, on retient la lettre majoritaire observée parmi les
+journées de ce jour de semaine. Ce profil consensus constitue
+l'équivalent d'un comportement « normal » propre à chaque grille et à
+chaque jour de semaine.
+
+\subsection{Distance de Damerau-Levenshtein}
+
+L'écart entre la signature d'une journée réelle et son profil de
+référence est mesuré par la distance de Damerau-Levenshtein, qui
+compte le nombre minimal d'opérations élémentaires -- insertion,
+suppression, substitution, ou transposition de deux lettres adjacentes
+-- nécessaires pour transformer une séquence en l'autre. L'ajout de la
+transposition par rapport à la distance de Levenshtein classique est
+important ici~: un décalage d'une heure dans un pic de trafic se
+traduit par la permutation de deux lettres adjacentes, que la
+distance de Levenshtein pénaliserait à tort comme deux erreurs
+distinctes.
+
+Le tableau~\ref{tab:dl-example} illustre ce calcul sur un exemple
+réduit à quatre lettres, en comparant la séquence \texttt{BCDE} à une
+référence \texttt{BDCE} -- les lettres \texttt{C} et \texttt{D} y sont
+simplement permutées. La distance de Damerau-Levenshtein vaut alors 1
+(une transposition), alors qu'une distance de Levenshtein classique
+compterait 2 (deux substitutions).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Exemple de calcul de la distance de Damerau-Levenshtein entre \texttt{BCDE} et \texttt{BDCE}}
+  \label{tab:dl-example}
+  \begin{tabular}{c|ccccc}
+    \toprule
+     & \textbf{\o} & \textbf{B} & \textbf{D} & \textbf{C} & \textbf{E} \\
+    \midrule
+    \textbf{\o} & 0 & 1 & 2 & 3 & 4 \\
+    \textbf{B}  & 1 & 0 & 1 & 2 & 3 \\
+    \textbf{C}  & 2 & 1 & 1 & 1 & 2 \\
+    \textbf{D}  & 3 & 2 & 1 & \textbf{1} & 2 \\
+    \textbf{E}  & 4 & 3 & 2 & 2 & \textbf{1} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Score z et seuil de détection}
+
+Une distance élevée en valeur absolue n'est pas directement
+interprétable~: certaines grilles ont naturellement des journées plus
+variables que d'autres. Les distances sont donc normalisées en score
+z \emph{par grille} -- c'est-à-dire centrées et réduites par la
+moyenne et l'écart type des distances observées sur cette grille --
+puis comparées à un seuil fixe. Une journée est marquée comme
+anormale lorsque son score z dépasse 3 (figure~\ref{fig:zscore}),
+c'est-à-dire lorsqu'elle s'écarte de plus de trois écarts types du
+comportement habituel de sa grille.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      width=0.68\textwidth, height=4.6cm,
+      domain=-4:4, samples=200,
+      axis lines=middle,
+      xlabel={score $z$}, ylabel={densité},
+      xtick={-3,-2,-1,0,1,2,3}, ytick=\empty,
+      every axis x label/.style={at={(current axis.right of origin)}, anchor=west},
+      every axis y label/.style={at={(current axis.above origin)}, anchor=south},
+      clip=false,
+    ]
+      \addplot[thick, black] {1/sqrt(2*pi)*exp(-x^2/2)};
+      \addplot[draw=none, fill=parisneutral, fill opacity=0.45, domain=3:4]
+        {1/sqrt(2*pi)*exp(-x^2/2)} \closedcycle;
+      \node[font=\footnotesize] at (axis cs:3.55,0.09) {jour anormal};
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Zone d'anomalie ($z > 3$) sur la distribution des scores z}
+  \label{fig:zscore}
+\end{figure}
+
+\subsection{Détection multi-canal et recoupement calendaire}
+
+Ce pipeline est exécuté indépendamment sur les trois canaux
+disponibles (Internet, SMS, appels), chacun avec ses propres seuils
+de nomenclature. Une anomalie confirmée simultanément par au moins
+deux canaux est considérée comme plus fiable qu'une anomalie détectée
+sur un seul canal. Enfin, les anomalies détectées sont recoupées avec
+un calendrier construit manuellement (jours fériés italiens, matchs à
+domicile de l'AC Milan et de l'Inter à San Siro), afin de distinguer
+une anomalie expliquée par un événement connu d'un signal réellement
+inattendu. Les résultats de cette validation sont présentés au
+chapitre~\ref{chap:conception}.
