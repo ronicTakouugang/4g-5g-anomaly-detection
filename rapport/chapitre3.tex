@@ -177,6 +177,22 @@ nécessairement dans les mêmes zones.
   \label{fig:top-grids}
 \end{figure}
 
+Reportées sur la grille géographique de Milan
+(figure~\ref{fig:carte-grilles}), ces grilles actives se révèlent
+spatialement concentrées~: les quatre grilles du noyau (5059, 5061,
+5159, 5161) forment un bloc compact de quatre cellules adjacentes,
+entouré des autres grilles du top 10 par canal, dans une zone unique
+du centre de Milan -- confirmant qu'il s'agit bien d'un pôle
+d'activité identifiable (et non de grilles dispersées sans lien
+géographique).
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.8\textwidth]{carte-grilles-actives.png}
+  \caption{Localisation géographique des grilles les plus actives, sur le maillage réel de Milan}
+  \label{fig:carte-grilles}
+\end{figure}
+
 \subsection{Distribution empirique des scores z}
 
 La figure~\ref{fig:zscore-empirique} présente la distribution
@@ -260,6 +276,57 @@ illustrer le gain de latence de la détection par fenêtre glissante
   \caption{Grille 1421 -- profil horaire du 1\textsuperscript{er} janvier 2014 comparé au profil médian d'un mercredi}
   \label{fig:profil-nouvelan}
 \end{figure}
+
+Le tableau~\ref{tab:dna-example} détaille, heure par heure, la
+signature réellement observée ce jour-là et la signature de référence
+à laquelle elle est comparée -- les deux séquences de 24 lettres dont
+la figure~\ref{fig:profil-nouvelan} n'est que la traduction en
+courbes. Les lettres en gras et en rouge marquent les positions où les
+deux séquences diffèrent~: 20 des 24 heures divergent, ce qui
+correspond exactement à la distance de Damerau-Levenshtein rapportée
+au tableau~\ref{tab:top-anomalies} (20). Les quatre heures identiques
+(0h, 4h, 22h, 23h) correspondent au cœur de la nuit, où le trafic
+Internet est structurellement faible -- férié ou non, tout le monde
+dort~; l'écart se concentre sur les heures de la journée, où le
+comportement « normal » (travail, déplacements) ne se produit pas ce
+jour férié.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Comparaison lettre par lettre, signature observée vs référence (grille 1421, 1\textsuperscript{er} janvier 2014)}
+  \label{tab:dna-example}
+  \small
+  \begin{tabular}{r c c}
+    \toprule
+    \textbf{Heure} & \textbf{Observée} & \textbf{Référence (mercredi typique)} \\
+    \midrule
+    0h  & C & C \\
+    1h  & C & \textcolor{red}{\textbf{B}} \\
+    2h  & C & \textcolor{red}{\textbf{B}} \\
+    3h  & C & \textcolor{red}{\textbf{B}} \\
+    4h  & B & B \\
+    5h  & \textcolor{red}{\textbf{A}} & B \\
+    6h  & \textcolor{red}{\textbf{A}} & C \\
+    7h  & \textcolor{red}{\textbf{A}} & C \\
+    8h  & \textcolor{red}{\textbf{A}} & D \\
+    9h  & \textcolor{red}{\textbf{B}} & D \\
+    10h & \textcolor{red}{\textbf{B}} & D \\
+    11h & \textcolor{red}{\textbf{C}} & D \\
+    12h & \textcolor{red}{\textbf{C}} & D \\
+    13h & \textcolor{red}{\textbf{C}} & D \\
+    14h & \textcolor{red}{\textbf{C}} & D \\
+    15h & \textcolor{red}{\textbf{C}} & D \\
+    16h & \textcolor{red}{\textbf{C}} & E \\
+    17h & \textcolor{red}{\textbf{C}} & E \\
+    18h & \textcolor{red}{\textbf{C}} & E \\
+    19h & \textcolor{red}{\textbf{C}} & D \\
+    20h & \textcolor{red}{\textbf{C}} & D \\
+    21h & \textcolor{red}{\textbf{C}} & D \\
+    22h & C & C \\
+    23h & C & C \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Comparaison des méthodes d'encodage}
 \label{sec:comparaison-encodage}
