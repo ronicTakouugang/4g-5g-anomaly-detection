@@ -1,14 +1,18 @@
-\documentclass[a4paper,11pt]{report}
+\documentclass[a4paper,12pt]{report}
 
 % --- Langue et encodage ---
 \usepackage[french]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 
+% --- Police : Times New Roman (norme académique courante) ---
+\usepackage{mathptmx}
+
 % --- Mise en page ---
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{setspace}
 \onehalfspacing
+% le texte est justifié par défaut avec LaTeX (aucun \raggedright n'est utilisé)
 
 % --- Figures, tableaux, couleurs ---
 \usepackage{graphicx}
@@ -49,8 +53,13 @@
 \begin{document}
 
 \input{titlepage}
+
+\pagenumbering{roman}
+\input{remerciements}
 \tableofcontents
 
+\clearpage
+\pagenumbering{arabic}
 \chapter{Introduction}
 
 \chapter{Contexte et état de l'art}
