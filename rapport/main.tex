@@ -59,7 +59,7 @@
 \input{remerciements}
 \input{resume}
 \input{abstract}
-\tableofcontents
+\input{sommaire}
 \listoffigures
 \listoftables
 
@@ -67,15 +67,20 @@
 \pagenumbering{arabic}
 \input{introduction}
 
-\chapter{Contexte et état de l'art}
+\input{chapitre1}
 
-\chapter{Méthodologie}
-\label{chap:methodologie}
+\chapter{État de l'art et méthodologie}
+\label{chap:etatart}
 
-\chapter{Résultats}
+\chapter{Conception et implémentation de la solution}
+\label{chap:conception}
 
-\chapter{Conclusion}
+\input{conclusion}
 
 \printbibliography
+
+\clearpage
+\label{ch:toc}
+\tableofcontents
 
 \end{document}

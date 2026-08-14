@@ -1,0 +1,114 @@
+\chapter{Cadre et contexte du projet}
+\label{chap:contexte}
+
+Dans ce chapitre, nous présentons le contexte dans lequel s'inscrit ce
+projet, la problématique qui en découle, les objectifs poursuivis,
+l'intérêt de l'étude ainsi que ses limites.
+
+\section{Contexte}
+
+Les réseaux mobiles de quatrième et cinquième génération (4G/5G)
+reposent sur une architecture qui sépare le réseau d'accès radio
+(\emph{Radio Access Network}, RAN), constitué des stations de base
+desservant les terminaux des utilisateurs, et le c\oe ur de réseau
+(\emph{Core Network}), qui gère l'authentification, la mobilité et
+l'acheminement du trafic vers les services (figure~\ref{fig:5g-arch}).
+Chaque station de base couvre une zone géographique limitée et rapporte
+en continu des indicateurs de trafic (volume de données, nombre
+d'appels, de SMS) qui peuvent être agrégés par zone et par créneau
+horaire.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{5g-architecture.png}
+  \caption[Architecture simplifiée d'un réseau 5G]{Architecture simplifiée d'un réseau 5G : terminaux (UE), réseau d'accès radio (5G NR) et c\oe ur de réseau (5G Core). Source~: GiftedYeti, \emph{5G Architecture.png}, Wikimedia Commons, licence CC BY-SA 4.0.}
+  \label{fig:5g-arch}
+\end{figure}
+
+Ce volume massif de données d'usage, collecté en continu sur
+l'ensemble d'une métropole, constitue une matière première précieuse
+pour la supervision du réseau. Il permet en principe de repérer, à
+l'échelle d'une zone géographique, des journées où le trafic s'écarte
+significativement de son comportement habituel -- signe possible d'un
+incident technique, d'une saturation, ou au contraire d'un événement
+extérieur (jour férié, rassemblement, manifestation sportive) qui
+modifie temporairement les habitudes de déplacement et de
+communication des usagers.
+
+\section{Problématique}
+
+La difficulté principale réside dans la distinction entre une
+variation normale du trafic -- heures de pointe, week-ends,
+saisonnalité -- et un comportement réellement atypique. À l'échelle
+d'une métropole, cette analyse doit en outre être menée sur un grand
+nombre de zones géographiques et sur plusieurs canaux de communication
+(Internet, SMS, appels), dont les dynamiques diffèrent sensiblement
+les unes des autres. Une méthode de détection doit donc être
+suffisamment sensible pour repérer les journées atypiques, tout en
+restant robuste au bruit statistique inhérent à des données réelles à
+large échelle, et sans disposer d'anomalies déjà étiquetées pour
+entraîner un modèle supervisé.
+
+\section{Objectifs}
+
+\subsection{Objectif général}
+
+L'objectif général de ce travail est de concevoir et d'évaluer une
+méthode de détection d'anomalies dans le trafic de réseaux cellulaires
+4G/5G, appliquée à des données réelles de trafic mobile de la ville de
+Milan.
+
+\subsection{Objectifs spécifiques}
+
+Plus spécifiquement, ce travail vise à~:
+\begin{itemize}
+  \item encoder le profil horaire de trafic de chaque zone sous une
+        forme compacte et comparable d'un jour à l'autre~;
+  \item détecter, pour chaque zone, les journées présentant un
+        comportement statistiquement atypique~;
+  \item appliquer cette détection indépendamment sur les trois canaux
+        disponibles (Internet, SMS, appels) et évaluer l'apport d'une
+        confirmation multi-canal~;
+  \item valider les anomalies détectées par recoupement avec un
+        calendrier d'événements connus (jours fériés, matchs à
+        domicile à San Siro).
+\end{itemize}
+
+\section{Intérêt de l'étude}
+
+\subsection{Intérêt académique}
+
+Sur le plan académique, ce travail permet d'approfondir des notions de
+traitement de séries temporelles, d'algorithmique des chaînes de
+caractères (distance d'édition) et d'analyse statistique, en les
+confrontant à un cas d'usage concret et à des données réelles de
+grande échelle. Il s'inscrit également dans la continuité des travaux
+de recherche existants sur la détection d'anomalies dans les réseaux
+cellulaires, dont le framework DiNATrAX constitue un point de départ
+méthodologique.
+
+\subsection{Intérêt professionnel}
+
+Sur le plan professionnel, une méthode de détection d'anomalies
+fiable, applicable à plusieurs canaux de trafic et ne nécessitant pas
+de données étiquetées, présente un intérêt direct pour la supervision
+opérationnelle des réseaux mobiles~: elle peut aider à prioriser les
+vérifications terrain, à anticiper des besoins de capacité localisés,
+ou à documenter automatiquement des journées atypiques pour les
+équipes d'exploitation.
+
+\section{Limites de l'étude}
+
+Cette étude présente plusieurs limites. Premièrement, les données
+utilisées portent sur une période de deux mois (novembre-décembre
+2013) et sur une seule ville, ce qui limite la généralisation directe
+des seuils calibrés à d'autres contextes géographiques ou temporels.
+Deuxièmement, la validation des anomalies détectées repose sur un
+recoupement avec un calendrier d'événements connus, qui ne permet de
+confirmer qu'une partie des anomalies observées -- les anomalies sans
+explication calendaire identifiée ne sont pas nécessairement des faux
+positifs, mais restent plus difficiles à interpréter. Enfin, le jeu de
+données ne distingue pas les usages 4G des usages 5G à proprement
+parler, la technologie 5G n'étant pas encore déployée sur la période
+couverte~; l'approche reste néanmoins directement transposable à des
+données de trafic 5G actuelles.
