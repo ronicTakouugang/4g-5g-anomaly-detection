@@ -103,7 +103,8 @@ sms-call-internet-mi-*.txt (62 fichiers, ~4M lignes chacun)
 │   ├── anomaly_hourly_sms.bin    idem, canal SMS
 │   ├── anomaly_hourly_call.bin   idem, canal Appels
 │   └── meta.json                 dates, identifiants de grille, dimensions, canaux disponibles
-├── presentation.html            présentation scrollytelling du projet
+├── anomalies-milano.pptx        présentation du projet
+├── dinatrax.pdf                 papier de référence (Maudoux & Boumerdassi, IEEE ICC 2024)
 ├── docs/
 │   └── screenshot.jpg
 ├── requirements.txt
