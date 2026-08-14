@@ -1,75 +1,319 @@
 \chapter{État de l'art et méthodologie}
 \label{chap:etatart}
 
-Ce chapitre situe ce travail par rapport aux approches existantes de
-détection d'anomalies dans les séries temporelles de trafic réseau,
-puis détaille la méthodologie retenue, du prétraitement des données
-brutes jusqu'au calcul du score d'anomalie.
+Ce chapitre pose les fondations scientifiques et méthodologiques de ce
+travail. Il s'ouvre par une revue des approches existantes de
+détection d'anomalies dans les séries temporelles -- statistiques,
+par apprentissage automatique, puis par représentation symbolique --
+afin de situer et de justifier le choix méthodologique retenu. Il
+précise ensuite le cadre théorique et conceptuel mobilisé, avant de
+détailler, étape par étape, le pipeline effectivement mis en œuvre.
 
 \clearpage
 \section{État de l'art}
 
-\subsection{Approches statistiques et par seuils}
+Cette section présente d'abord les approches statistiques classiques
+de détection d'anomalies dans les séries temporelles, puis les
+approches par apprentissage automatique non supervisé, avant
+d'introduire les approches par représentation symbolique et distance
+d'édition dont relève le framework retenu pour ce travail. Une
+synthèse comparative et une discussion des limites de ces approches
+pour le contexte étudié closent la section.
 
-Les premières approches de détection d'anomalies dans des séries
-temporelles reposent sur des méthodes statistiques classiques :
-cartes de contrôle, moyennes mobiles, ou modèles de prévision (par
-exemple ARIMA) dont on surveille le résidu -- l'écart entre la valeur
-observée et la valeur prédite. Une anomalie est alors signalée
-lorsque ce résidu, ou plus simplement la valeur elle-même, dépasse un
-seuil fixé a priori ou calibré statistiquement (par exemple à partir
-de l'écart type de la série). Ces méthodes sont simples à mettre en
-œuvre et à interpréter, mais elles supposent une certaine stationnarité
-du signal et se révèlent sensibles au choix du seuil, ainsi qu'aux
-variations normales (saisonnalité, effets de calendrier) qui peuvent
-être confondues avec de véritables anomalies \parencite{chandola2009anomaly}.
+\subsection{Approches statistiques classiques}
 
-\subsection{Approches par apprentissage automatique}
+\paragraph{Cartes de contrôle et règle des trois sigmas.}
+Issue du contrôle statistique de la qualité industrielle
+(Shewhart, 1931), cette approche modélise un signal normal comme une
+variable aléatoire de moyenne $\mu$ et d'écart type $\sigma$, et
+signale comme anormale toute observation $x_t$ s'écartant de plus de
+trois écarts types de la moyenne~:
+\begin{equation}
+  |x_t - \mu| > 3\sigma
+\end{equation}
+Cette règle est simple, peu coûteuse à calculer et largement utilisée
+en supervision de systèmes, mais elle suppose une distribution stable
+dans le temps et ne tient pas compte de la structure temporelle du
+signal (tendance, saisonnalité).
 
-Les approches par apprentissage automatique cherchent à apprendre
-directement, à partir des données, ce qu'est un comportement
-« normal », sans reposer sur un seuil fixé manuellement. Les méthodes
-non supervisées -- clustering, forêts d'isolement, auto-encodeurs --
-identifient les observations qui s'écartent le plus de la structure
-apprise sur l'ensemble des données, tandis que les approches par
-apprentissage profond (réseaux récurrents, auto-encodeurs séquentiels)
-permettent de capturer des dépendances temporelles plus complexes
-\parencite{chalapathy2019deep}. Ces méthodes sont en général plus
-coûteuses à mettre en œuvre et moins directement interprétables, et
-nécessitent souvent un volume de données d'entraînement important
-pour être fiables.
+\paragraph{Détection par résidus de prévision (ARIMA).}
+Une variante plus riche consiste à ajuster un modèle de prévision --
+typiquement un modèle ARIMA (\emph{AutoRegressive Integrated Moving
+Average}) -- sur la série temporelle, puis à surveiller le résidu
+$e_t = x_t - \hat{x}_t$ entre la valeur observée $x_t$ et la valeur
+prédite $\hat{x}_t$. Une anomalie est signalée lorsque ce résidu
+dépasse un multiple de son écart type~:
+\begin{equation}
+  |e_t| > k \cdot \sigma_e, \quad k \approx 3
+\end{equation}
+Cette approche capture mieux la saisonnalité et les tendances que la
+règle des trois sigmas appliquée directement au signal brut, mais elle
+nécessite un réglage spécifique par série (ordre du modèle,
+paramètres de saisonnalité) -- difficilement praticable lorsqu'il faut
+traiter plusieurs milliers de séries indépendantes, comme c'est le cas
+ici avec les 10 000 grilles de Milan.
 
-\subsection{Approches par encodage de signatures et distance d'édition}
+\subsection{Approches par apprentissage automatique non supervisé}
 
-Une troisième famille d'approches encode le comportement d'une entité
-(ici, le trafic horaire d'une zone géographique) sous la forme d'une
-séquence symbolique -- une « signature » -- puis mesure l'écart entre
-deux séquences à l'aide d'une distance d'édition, empruntée à
-l'algorithmique des chaînes de caractères. C'est l'approche retenue
-dans le framework DiNATrAX~\parencite{maudoux2024dinatrax}, qui encode
-l'activité d'une entité réseau en une séquence de lettres et détecte
-les anomalies par distance de Damerau-Levenshtein à un profil de
-référence. Cette approche présente trois avantages pour le cas
-étudié~: elle ne nécessite pas de données étiquetées, elle reste
-interprétable (chaque lettre correspond directement à un niveau de
-trafic observable), et elle est sensible aux variations d'amplitude du
-signal -- contrairement à un découpage en quantiles, qui absorbe une
-hausse uniforme du trafic sans faire apparaître de changement de
-signature. C'est cette approche qui a été adaptée et retenue pour ce
-travail.
+\paragraph{Isolation Forest.}
+Introduite par \textcite{liu2008isolation}, cette méthode part d'une
+observation~: les points anormaux sont peu nombreux et
+« différents », donc plus faciles à isoler que les points normaux par
+des partitions aléatoires successives de l'espace des données. Un
+score d'anomalie est calculé à partir de la longueur moyenne du
+chemin $E(h(x))$ nécessaire pour isoler un point $x$ dans une forêt
+d'arbres de partitionnement aléatoire~:
+\begin{equation}
+  s(x, n) = 2^{-\,E(h(x))/c(n)}
+\end{equation}
+où $c(n) = 2H(n-1) - \frac{2(n-1)}{n}$ est la longueur de chemin
+moyenne d'une recherche infructueuse dans un arbre binaire, et
+$H(i) \approx \ln(i) + 0{,}5772$ le nombre harmonique. Un score
+proche de 1 indique une forte probabilité d'anomalie
+(figure~\ref{fig:isoforest}).
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}[scale=0.55]
+    \draw[thick] (0,0) rectangle (10,10);
+    \foreach \p in {(6.2,7.1),(6.8,6.5),(7.3,7.8),(6.5,6.9),(7.7,7.2),(7.0,7.5),(6.9,6.3),(7.5,6.8),(7.1,7.0),(6.6,7.4)}
+      \fill \p circle (2.5pt);
+    \fill[red] (1.2,1.5) circle (3pt);
+    \node[red, font=\footnotesize] at (2.6,1.9) {point anormal};
+    \draw[dashed, blue] (3,0) -- (3,10);
+    \draw[dashed, blue] (0,3.2) -- (10,3.2);
+    \node[blue, font=\footnotesize] at (1.5,9.4) {coupe 1 ($x<3$)};
+    \node[blue, font=\footnotesize] at (8.3,1.0) {coupe 2 ($y<3{,}2$)};
+  \end{tikzpicture}
+  \caption[Principe de l'isolation forest]{Principe de l'isolation forest~: un point isolé (rouge) est séparé du reste des observations en très peu de coupes aléatoires, alors qu'un point situé dans une zone dense (noir) nécessite beaucoup plus de coupes pour être isolé \parencite{liu2008isolation}.}
+  \label{fig:isoforest}
+\end{figure}
+
+\paragraph{One-Class SVM.}
+Proposée par \textcite{scholkopf2001estimating}, cette méthode
+apprend une frontière séparant la région de forte densité des données
+(comportement normal) du reste de l'espace, en résolvant~:
+\begin{equation}
+  \min_{w,\xi,\rho} \ \frac{1}{2}\|w\|^2 + \frac{1}{\nu n}\sum_i \xi_i - \rho,
+  \quad \text{s.c. } \langle w, \Phi(x_i)\rangle \geq \rho - \xi_i,\ \xi_i \geq 0
+\end{equation}
+Un point $x$ est classé comme anormal lorsque
+$f(x) = \mathrm{sign}(\langle w, \Phi(x)\rangle - \rho) < 0$. Le
+paramètre $\nu \in (0,1]$ borne la proportion attendue d'anomalies
+dans les données d'apprentissage. Ces deux méthodes ont l'avantage de
+ne pas supposer de distribution paramétrique du signal, mais elles
+opèrent sur des vecteurs de caractéristiques plutôt que directement
+sur la structure temporelle d'une journée, et restent peu
+interprétables~: un score élevé n'indique pas directement \emph{à
+quelle heure} ni \emph{de quelle manière} le trafic s'écarte de la
+normale \parencite{chalapathy2019deep}.
+
+\subsection{Approches par représentation symbolique et distance d'édition}
+
+\paragraph{SAX (Symbolic Aggregate approXimation).}
+\textcite{lin2007experiencing} proposent de convertir une série
+temporelle continue en une séquence de symboles discrets, en trois
+étapes~: (i) normalisation centrée-réduite de la série, (ii)
+réduction de dimension par \emph{Piecewise Aggregate Approximation}
+(PAA), qui moyenne le signal sur des segments consécutifs, puis (iii)
+discrétisation de chaque segment en un symbole, à l'aide de points de
+coupure définis pour découper une loi normale centrée réduite en
+régions \emph{équiprobables}. Deux séries ainsi symbolisées peuvent
+ensuite être comparées par une distance adaptée (MINDIST) ou par une
+distance d'édition classique.
+
+\paragraph{DiNATrAX.}
+Le framework DiNATrAX~\parencite{maudoux2024dinatrax}, retenu comme
+point de départ méthodologique de ce travail, s'inscrit dans la même
+famille~: il encode l'activité d'une entité réseau en une séquence de
+lettres et mesure l'écart à une séquence de référence par une
+distance de Damerau-Levenshtein plutôt que par une distance MINDIST.
+Une différence importante avec SAX mérite d'être soulignée~: SAX
+découpe le signal en symboles \emph{équiprobables} sous hypothèse de
+normalité, une opération proche d'un découpage en quantiles, alors
+que l'encodage utilisé ici (détaillé en section~\ref{sec:methodo})
+repose sur des seuils \emph{fixes}, exprimés en multiple de la
+médiane locale. Ce choix rend l'encodage sensible à l'amplitude du
+signal, là où un découpage équiprobable absorbe une hausse uniforme du
+trafic sans faire apparaître de changement de signature.
+
+\subsection{Synthèse comparative}
+
+Le tableau~\ref{tab:comparatif} synthétise les principales
+caractéristiques des familles d'approches présentées, au regard des
+contraintes du problème traité~: absence de données étiquetées,
+besoin d'interprétabilité pour les équipes d'exploitation, et
+sensibilité aux variations d'amplitude du trafic.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Synthèse comparative des approches de détection d'anomalies}
+  \label{tab:comparatif}
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Approche} & \textbf{Non supervisée} & \textbf{Interprétable} & \textbf{Sensible à l'amplitude} \\
+    \midrule
+    Trois sigmas / cartes de contrôle & Oui & Oui & Oui \\
+    Résidus ARIMA                     & Oui & Partiellement & Oui \\
+    Isolation Forest                  & Oui & Non & Oui \\
+    One-Class SVM                     & Oui & Non & Dépend du noyau \\
+    SAX (quantiles)                   & Oui & Oui & Non \\
+    DiNATrAX (seuils fixes)           & Oui & Oui & Oui \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\subsection{Limites des approches existantes pour ce contexte}
+
+Les approches par apprentissage automatique (Isolation Forest,
+One-Class SVM, méthodes profondes) offrent une bonne capacité de
+détection mais restent peu interprétables et coûteuses à entraîner et
+calibrer sur 10 000 grilles indépendantes, sans anomalies étiquetées
+pour valider les hyperparamètres. Les approches statistiques
+classiques (trois sigmas, ARIMA) sont simples et interprétables, mais
+nécessitent un réglage fin par série et gèrent mal la structure
+intra-journalière du trafic (24 heures corrélées entre elles). Les
+approches par représentation symbolique combinent simplicité,
+interprétabilité et passage à l'échelle, mais l'encodage
+\emph{équiprobable} de SAX absorbe les variations d'amplitude
+globales -- un défaut rédhibitoire pour ce travail, où une hausse ou
+une chute uniforme du trafic d'une grille constitue précisément le
+type de signal à détecter. C'est ce qui justifie le choix d'un
+encodage à seuils fixes, inspiré de DiNATrAX, détaillé en
+section~\ref{sec:methodo}.
+
+\clearpage
+\section{Cadre théorique et conceptuel}
+
+\subsection{Définitions clés}
+
+\begin{itemize}
+  \item \textbf{Série temporelle}~: suite de valeurs observées à
+        intervalles de temps réguliers -- ici, le trafic horaire
+        d'une grille sur un canal donné.
+  \item \textbf{Anomalie}~: observation qui s'écarte suffisamment du
+        comportement attendu pour susciter la suspicion qu'elle a été
+        générée par un processus différent. \textcite{chandola2009anomaly}
+        distinguent trois types d'anomalies~: \emph{ponctuelle} (une
+        observation isolée est anormale par rapport au reste des
+        données), \emph{contextuelle} (une observation est anormale
+        seulement dans un contexte donné, par exemple une heure ou un
+        jour de semaine précis) et \emph{collective} (un ensemble
+        d'observations, normales individuellement, est anormal pris
+        dans son ensemble). La détection d'une journée anormale à
+        partir de sa signature de 24 lettres relève de ce troisième
+        type~: c'est la séquence complète, et non une heure isolée,
+        qui est jugée atypique.
+  \item \textbf{Signature (ou ADN de trafic)}~: séquence de 24
+        lettres encodant le niveau de trafic horaire d'une grille sur
+        une journée.
+  \item \textbf{Distance d'édition}~: nombre minimal d'opérations
+        élémentaires nécessaires pour transformer une séquence en une
+        autre (section~\ref{sec:dl}).
+  \item \textbf{Score z}~: mesure de l'écart d'une observation à la
+        moyenne, exprimée en nombre d'écarts types.
+\end{itemize}
+
+\subsection{Modélisation du problème}
+
+Soit $g$ une grille géographique, $c$ un canal de communication
+(Internet, SMS, appels), $d$ un jour et $h$ une heure. Le trafic
+observé est noté $x_{g,c,d,h}$. Pour chaque $(g,c,d)$, on construit la
+signature journalière $S_{g,c,d} = (\ell_{g,c,d,1}, \dots,
+\ell_{g,c,d,24})$, où chaque lettre $\ell_{g,c,d,h}$ est fonction du
+rapport $x_{g,c,d,h} / \tilde{x}_{g,c,h}$ à la médiane horaire
+$\tilde{x}_{g,c,h}$ propre à la grille $g$ et au canal $c$. Le
+problème de détection revient alors, pour chaque triplet $(g,c,d)$, à
+décider si $S_{g,c,d}$ est suffisamment éloignée d'un profil de
+référence $R_{g,c,\mathrm{jsem}(d)}$ -- construit par jour de semaine
+$\mathrm{jsem}(d)$ -- pour être qualifiée d'anomalie.
+
+\subsection{Fondements statistiques du score z}
+
+La conversion d'une distance en score z repose sur l'hypothèse que,
+pour une grille donnée, les distances observées sur l'ensemble des
+journées suivent approximativement une distribution stable, de
+moyenne $\mu_g$ et d'écart type $\sigma_g$ propres à cette grille~:
+\begin{equation}
+  z_{g,c,d} = \frac{\mathrm{dist}(S_{g,c,d}, R_{g,c,\mathrm{jsem}(d)}) - \mu_{g,c}}{\sigma_{g,c}}
+\end{equation}
+Cette normalisation \emph{par grille} est essentielle~: elle rend
+comparables des grilles dont les journées sont naturellement plus ou
+moins variables (un quartier d'affaires et un quartier résidentiel
+n'ont pas la même dispersion de trafic d'un jour à l'autre), et évite
+qu'un seuil unique en distance brute ne favorise systématiquement la
+détection sur les grilles les plus volatiles.
 
 \clearpage
 \section{Méthodologie}
+\label{sec:methodo}
+
+\subsection{Type et approche de la recherche}
+
+Ce travail relève d'une recherche appliquée, à visée exploratoire et
+quantitative~: il s'agit de concevoir et d'évaluer empiriquement un
+pipeline de détection sur un jeu de données réel, plutôt que de
+tester une hypothèse formulée a priori. L'approche est non supervisée
+-- aucune anomalie n'est étiquetée dans les données source -- et la
+validation des résultats repose sur un recoupement indirect avec un
+calendrier d'événements connus, plutôt que sur une évaluation
+classique en précision/rappel.
+
+\subsection{Source de données}
+
+Les données proviennent du jeu \emph{Telecom Italia Big Data
+Challenge} (tableau~\ref{tab:dataset}). Pour chaque interaction
+(connexion Internet, SMS, appel), un enregistrement brut comporte un
+horodatage, l'identifiant de la grille géographique concernée et un
+volume d'activité, selon le schéma simplifié du tableau~\ref{tab:schema}.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Jeu de données utilisé}
+  \label{tab:dataset}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Caractéristique} & \textbf{Valeur} \\
+    \midrule
+    Source & Telecom Italia Big Data Challenge \\
+    Dépôt & Harvard Dataverse \\
+    Licence & ODbL \\
+    Zone couverte & Ville de Milan (grille géographique) \\
+    Période couverte & 1\textsuperscript{er} novembre 2013 -- 1\textsuperscript{er} janvier 2014 \\
+    Nombre de fichiers & 62 (un par jour) \\
+    Volume par fichier & \textasciitilde{}4 millions de lignes (\textasciitilde{}250 Mo) \\
+    Canaux disponibles & Internet, SMS, appels \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\begin{table}[htbp]
+  \centering
+  \caption{Schéma simplifié des données sources}
+  \label{tab:schema}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Champ} & \textbf{Description} \\
+    \midrule
+    gridID     & Identifiant de la grille géographique (1 à 10 000) \\
+    timestamp  & Horodatage de l'interaction (résolution 10 minutes) \\
+    countrycode & Indicatif pays de l'opérateur mobile \\
+    smsin / smsout & Volume de SMS entrants / sortants \\
+    callin / callout & Volume d'appels entrants / sortants \\
+    internet   & Volume de trafic Internet \\
+    \bottomrule
+  \end{tabular}
+\end{table}
 
 \subsection{Vue d'ensemble du pipeline}
 
 Le traitement se décompose en six étapes principales, illustrées par
-la figure~\ref{fig:pipeline} : agrégation du trafic brut, encodage en
-signature journalière, construction d'un profil de référence,
-calcul de la distance d'édition, conversion en score z, puis
-recoupement calendaire des anomalies détectées. Ce pipeline est
-exécuté indépendamment sur chacun des trois canaux disponibles
-(Internet, SMS, appels).
+la figure~\ref{fig:pipeline}~: agrégation du trafic brut, encodage en
+signature journalière, construction d'un profil de référence, calcul
+de la distance d'édition, conversion en score z, puis recoupement
+calendaire des anomalies détectées. Ce pipeline est exécuté
+indépendamment sur chacun des trois canaux disponibles (Internet,
+SMS, appels).
 
 \begin{figure}[htbp]
   \centering
@@ -97,12 +341,12 @@ exécuté indépendamment sur chacun des trois canaux disponibles
 
 \subsection{Agrégation du trafic}
 
-Les fichiers sources contiennent, pour chaque interaction (connexion
-Internet, SMS, appel), un horodatage et l'identifiant de la grille
-géographique parmi les 10 000 zones carrées composant le maillage de
-Milan. Ces événements sont agrégés par \emph{(grille, jour, heure)},
-ce qui produit, pour chaque grille et chaque canal, une série
-temporelle horaire de trafic sur toute la période couverte.
+Les fichiers sources contiennent, pour chaque interaction, un
+horodatage et l'identifiant de la grille géographique parmi les
+10 000 zones carrées composant le maillage de Milan. Ces événements
+sont agrégés par \emph{(grille, jour, heure)}, ce qui produit, pour
+chaque grille et chaque canal, une série temporelle horaire de trafic
+sur toute la période couverte.
 
 \subsection{Encodage en signature journalière}
 
@@ -112,9 +356,10 @@ médiane horaire \emph{propre à cette grille}. Ce choix rend l'échelle
 relative -- une grille calme et une grille du centre-ville restent
 comparables -- tout en la rendant sensible à l'amplitude du trafic~:
 un doublement uniforme du trafic d'une grille fait basculer ses
-lettres vers des niveaux supérieurs, ce qu'un découpage en quantiles
-ne peut pas détecter. La signature d'une journée est la concaténation
-des 24 lettres, une par heure.
+lettres vers des niveaux supérieurs, ce qu'un découpage en quantiles,
+tel que celui utilisé par SAX, ne peut pas détecter (voir
+section~\ref{sec:methodo} ci-dessus). La signature d'une journée est
+la concaténation des 24 lettres, une par heure.
 
 \begin{table}[htbp]
   \centering
@@ -153,6 +398,7 @@ l'équivalent d'un comportement « normal » propre à chaque grille et à
 chaque jour de semaine.
 
 \subsection{Distance de Damerau-Levenshtein}
+\label{sec:dl}
 
 L'écart entre la signature d'une journée réelle et son profil de
 référence est mesuré par la distance de Damerau-Levenshtein, qui
@@ -194,8 +440,7 @@ compterait 2 (deux substitutions).
 Une distance élevée en valeur absolue n'est pas directement
 interprétable~: certaines grilles ont naturellement des journées plus
 variables que d'autres. Les distances sont donc normalisées en score
-z \emph{par grille} -- c'est-à-dire centrées et réduites par la
-moyenne et l'écart type des distances observées sur cette grille --
+z \emph{par grille}, comme formalisé en section~\ref{sec:methodo},
 puis comparées à un seuil fixe. Une journée est marquée comme
 anormale lorsque son score z dépasse 3 (figure~\ref{fig:zscore}),
 c'est-à-dire lorsqu'elle s'écarte de plus de trois écarts types du
