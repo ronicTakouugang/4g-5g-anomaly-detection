@@ -149,7 +149,7 @@ absolue commune.
 
 L'agrégation du trafic cumulé sur toute la période, par grille et par
 canal, fait apparaître un noyau de grilles constamment actives quel
-que soit le canal considéré (tableau~\ref{tab:top-grids})~: les
+que soit le canal considéré (figure~\ref{fig:top-grids})~: les
 grilles 5059, 5061, 5159 et 5161 figurent dans le top 5 des trois
 canaux, ce qui suggère une zone dense en usages mobiles (quartier
 d'affaires ou pôle de transport) plutôt qu'un artefact propre à un
@@ -159,23 +159,23 @@ Internet (plus de 10,4 millions d'enregistrements sur deux mois) sans
 en tête -- signe que les usages data et voix/SMS ne se concentrent pas
 nécessairement dans les mêmes zones.
 
-\begin{table}[htbp]
+\begin{figure}[htbp]
   \centering
-  \caption{Grilles les plus actives par canal (top 5, volume cumulé sur 2 mois)}
-  \label{tab:top-grids}
-  \begin{tabular}{c c c c c c}
-    \toprule
-    \multicolumn{2}{c}{\textbf{SMS}} & \multicolumn{2}{c}{\textbf{Appels}} & \multicolumn{2}{c}{\textbf{Internet}} \\
-    Grille & Volume & Grille & Volume & Grille & Volume \\
-    \midrule
-    5059 & 1 374 887 & 5059 & 1 216 031 & 5161 & 10 489 543 \\
-    5161 & 1 148 150 & 6064 & 1 001 505 & 5059 & 9 118 958 \\
-    6064 & 1 028 903 & 5161 & 955 171   & 5259 & 8 369 880 \\
-    5061 & 991 693   & 5159 & 869 678   & 5061 & 7 785 143 \\
-    5159 & 925 083   & 5061 & 781 786   & 5258 & 7 125 254 \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+  \begin{subfigure}[b]{0.85\textwidth}
+    \includegraphics[width=\textwidth]{top-grids-sms.png}
+    \caption{SMS}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.85\textwidth}
+    \includegraphics[width=\textwidth]{top-grids-appels.png}
+    \caption{Appels}
+  \end{subfigure}
+  \begin{subfigure}[b]{0.85\textwidth}
+    \includegraphics[width=\textwidth]{top-grids-internet.png}
+    \caption{Internet}
+  \end{subfigure}
+  \caption{Grilles les plus actives par canal (top 10, volume cumulé sur 2 mois)}
+  \label{fig:top-grids}
+\end{figure}
 
 \subsection{Distribution empirique des scores z}
 
@@ -202,20 +202,57 @@ corps principal de la distribution.
   \label{fig:zscore-empirique}
 \end{figure}
 
+\subsection{Anomalies les plus marquées}
+
+Le tableau~\ref{tab:top-anomalies} liste les dix journées-grille dont
+le score z de distance est le plus élevé sur l'ensemble de la période
+(canal Internet). Sur ces dix cas, neuf tombent le
+1\textsuperscript{er} janvier 2014 (Nouvel An) ou le 25 décembre 2013
+(Noël) -- les deux journées les plus perturbatrices de la période, ce
+qui confirme la cohérence du pipeline~: les anomalies les plus
+extrêmes ne sont pas dispersées au hasard, mais concentrées sur des
+jours effectivement exceptionnels. Le seul cas hors de ce schéma, la
+grille 4527 le 24 novembre 2013 (un dimanche), ne correspond à aucun
+événement de notre calendrier de repère~: c'est un exemple concret
+d'anomalie \emph{résiduelle}, du type discuté en conclusion de ce
+chapitre.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Dix journées-grille au score z le plus élevé (canal Internet)}
+  \label{tab:top-anomalies}
+  \begin{tabular}{clccc}
+    \toprule
+    \textbf{Rang} & \textbf{Grille} & \textbf{Date} & \textbf{Distance} & \textbf{Score z} \\
+    \midrule
+    1  & 1421 & 01/01/2014 & 20 & 5,00 \\
+    2  & 9868 & 25/12/2013 & 18 & 4,93 \\
+    3  & 1316 & 01/01/2014 & 22 & 4,85 \\
+    4  & 1118 & 01/01/2014 & 21 & 4,77 \\
+    5  & 7952 & 25/12/2013 & 22 & 4,66 \\
+    6  & 1420 & 01/01/2014 & 20 & 4,61 \\
+    7  & 8343 & 01/01/2014 & 20 & 4,58 \\
+    8  & 919  & 25/12/2013 & 20 & 4,54 \\
+    9  & 4527 & 24/11/2013 & 20 & 4,52 \\
+    10 & 8243 & 01/01/2014 & 20 & 4,51 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{Étude de cas~: l'anomalie du 1\textsuperscript{er} janvier 2014}
 
 Pour illustrer concrètement ce que détecte le pipeline, la
-figure~\ref{fig:profil-nouvelan} compare, pour la grille 1421, le
-profil horaire réel du 1\textsuperscript{er} janvier 2014 (Nouvel An)
-à son profil médian habituel pour un mercredi. L'écart est visible
-sur toute la journée, mais particulièrement marqué l'après-midi et en
-soirée (14h-22h), où le trafic Internet observé reste inférieur de
-30 à 40~\% au profil typique~: une activité réduite, cohérente avec un
+figure~\ref{fig:profil-nouvelan} compare, pour la grille 1421 --
+première ligne du tableau~\ref{tab:top-anomalies} --, le profil
+horaire réel du 1\textsuperscript{er} janvier 2014 à son profil
+médian habituel pour un mercredi. L'écart est visible sur toute la
+journée, mais particulièrement marqué l'après-midi et en soirée
+(14h-22h), où le trafic Internet observé reste inférieur de 30 à
+40~\% au profil typique~: une activité réduite, cohérente avec un
 jour férié où les déplacements domicile-travail et l'activité de
-bureau habituels sont suspendus. Cette journée obtient le score z de
-bloc journalier le plus élevé de toute la période étudiée
-($z = 5{,}00$), et sert de fil rouge pour illustrer le gain de latence
-de la détection par fenêtre glissante (section~\ref{sec:fenetre-glissante}).
+bureau habituels sont suspendus. Cette journée sert de fil rouge pour
+illustrer le gain de latence de la détection par fenêtre glissante
+(section~\ref{sec:fenetre-glissante}).
 
 \begin{figure}[htbp]
   \centering
@@ -392,7 +429,17 @@ la grille 1421 étudiée précédemment (figure~\ref{fig:profil-nouvelan}).
   \end{tabular}
 \end{table}
 
+La détection par fenêtre glissante a ensuite été étendue aux canaux
+SMS et appels, en réutilisant telles quelles les fonctions développées
+pour Internet -- nécessaire pour que le tableau de bord affiche les
+trois canaux avec la même granularité horaire. Cette extension produit
+142~671 heures en anomalie (fenêtre longue) pour le canal SMS et
+157~467 heures pour les appels, un ordre de grandeur cohérent avec le
+volume d'anomalies plus élevé déjà observé pour ces deux canaux
+(section~\ref{sec:resultats-canal}).
+
 \section{Résultats de la détection par canal}
+\label{sec:resultats-canal}
 
 Le pipeline complet -- encodage, distance de Damerau-Levenshtein,
 score z, seuil à $z>3$ -- a été exécuté indépendamment sur les trois
