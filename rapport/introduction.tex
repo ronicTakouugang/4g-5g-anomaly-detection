@@ -1,105 +1,34 @@
-\chapter{Introduction générale}
-
-\section*{Contexte général}
-\addcontentsline{toc}{section}{Contexte général}
+\chapter*{Introduction générale}
+\addcontentsline{toc}{chapter}{Introduction générale}
+\label{ch:intro}
 
 Les réseaux cellulaires 4G/5G supportent aujourd'hui un volume de
 trafic considérable et en croissance constante, porté par la
-multiplication des usages mobiles (données Internet, messagerie,
-voix). Cette densification s'accompagne d'une complexité croissante
-dans la supervision du réseau~: les opérateurs doivent être en mesure
-de détecter rapidement tout comportement de trafic sortant de la
-norme, qu'il s'agisse d'une panne, d'une saturation localisée ou d'un
-événement exceptionnel affectant une zone géographique donnée. La
-détection d'anomalies dans les séries temporelles de trafic mobile
-constitue ainsi un enjeu opérationnel important pour la qualité de
-service.
+multiplication des usages mobiles -- données Internet, messagerie,
+voix. Cette densification s'accompagne d'une complexité croissante
+dans la supervision du réseau, où la capacité à détecter rapidement un
+comportement de trafic sortant de la norme, qu'il s'agisse d'une
+panne, d'une saturation localisée ou d'un événement exceptionnel,
+devient un enjeu opérationnel majeur pour la qualité de service.
 
-\section*{Problématique}
-\addcontentsline{toc}{section}{Problématique}
-
-La difficulté principale réside dans la distinction entre une
-variation normale du trafic (heures de pointe, week-ends, saisonnalité)
-et un comportement réellement atypique. À l'échelle d'une métropole,
-cette analyse doit en outre être menée sur un grand nombre de zones
-géographiques et sur plusieurs canaux de communication (Internet, SMS,
-appels), dont les dynamiques diffèrent sensiblement. Une méthode de
-détection doit donc être suffisamment sensible pour repérer les
-journées atypiques, tout en restant robuste au bruit statistique
-inhérent à des données réelles à large échelle.
-
-\section*{Objectifs}
-\addcontentsline{toc}{section}{Objectifs}
-
-Ce travail vise à concevoir et évaluer une méthode de détection
+Ce rapport vise à concevoir et évaluer une méthode de détection
 d'anomalies dans le trafic de réseaux cellulaires 4G/5G, appliquée à
-des données réelles de trafic mobile de la ville de Milan. Les
-objectifs poursuivis sont les suivants~:
-\begin{itemize}
-  \item encoder le profil horaire de trafic de chaque zone sous une
-        forme compacte et comparable d'un jour à l'autre~;
-  \item détecter, pour chaque zone, les journées présentant un
-        comportement statistiquement atypique~;
-  \item appliquer cette détection indépendamment sur les trois canaux
-        disponibles (Internet, SMS, appels) et évaluer l'apport d'une
-        confirmation multi-canal~;
-  \item valider les anomalies détectées par recoupement avec un
-        calendrier d'événements connus (jours fériés, matchs à
-        domicile à San Siro).
-\end{itemize}
+des données réelles de trafic mobile de la ville de Milan. L'approche
+proposée s'inspire du framework académique DiNATrAX (Maudoux \&
+Boumerdassi, IEEE ICC 2024) : elle encode le profil horaire de trafic
+de chaque zone géographique sous la forme d'une signature journalière,
+comparée à un profil de référence par une distance d'édition, afin
+d'isoler les journées présentant un comportement statistiquement
+atypique. Cette détection est appliquée indépendamment sur trois
+canaux (Internet, SMS, appels), et les anomalies obtenues sont
+recoupées avec un calendrier d'événements connus afin d'en évaluer la
+fiabilité.
 
-\section*{Démarche adoptée}
-\addcontentsline{toc}{section}{Démarche adoptée}
-
-L'approche retenue s'inspire du framework académique DiNATrAX
-(Maudoux \& Boumerdassi, IEEE ICC 2024) : le trafic horaire de chaque
-zone est encodé en une signature journalière de 24 lettres, chaque
-lettre représentant un niveau de trafic exprimé en multiple de la
-médiane horaire de la zone. Cette signature est comparée à un profil
-de référence par la distance d'édition de Damerau-Levenshtein, puis
-convertie en score z permettant d'isoler les jours anormaux. Le détail
-de cette méthode est présenté au chapitre~\ref{chap:methodologie}.
-
-Le jeu de données utilisé est résumé dans le tableau~\ref{tab:dataset}.
-
-\begin{table}[htbp]
-  \centering
-  \caption{Jeu de données utilisé}
-  \label{tab:dataset}
-  \begin{tabular}{ll}
-    \toprule
-    \textbf{Caractéristique} & \textbf{Valeur} \\
-    \midrule
-    Source & Telecom Italia Big Data Challenge \\
-    Dépôt & Harvard Dataverse \\
-    Licence & ODbL \\
-    Zone couverte & Ville de Milan (grille géographique) \\
-    Période couverte & 1\textsuperscript{er} novembre 2013 -- 1\textsuperscript{er} janvier 2014 \\
-    Nombre de fichiers & 62 (un par jour) \\
-    Volume par fichier & \textasciitilde{}4 millions de lignes (\textasciitilde{}250 Mo) \\
-    Canaux disponibles & Internet, SMS, appels \\
-    \bottomrule
-  \end{tabular}
-\end{table}
-
-\section*{Organisation du rapport}
-\addcontentsline{toc}{section}{Organisation du rapport}
-
-La suite de ce rapport est organisée comme indiqué dans le
-tableau~\ref{tab:plan}.
-
-\begin{table}[htbp]
-  \centering
-  \caption{Plan du rapport}
-  \label{tab:plan}
-  \begin{tabular}{ll}
-    \toprule
-    \textbf{Chapitre} & \textbf{Contenu} \\
-    \midrule
-    Contexte et état de l'art & Réseaux 4G/5G, détection d'anomalies, framework DiNATrAX \\
-    Méthodologie & Encodage en signatures, distance d'édition, score z, pipeline multi-canal \\
-    Résultats & Anomalies détectées, validation calendaire, tableau de bord 3D \\
-    Conclusion & Bilan, limites et perspectives \\
-    \bottomrule
-  \end{tabular}
-\end{table}
+Ce rapport s'articule en trois chapitres. Le premier présente le cadre
+et le contexte du projet, la problématique et les objectifs poursuivis.
+Le deuxième expose l'état de l'art sur la détection d'anomalies dans
+les réseaux cellulaires ainsi que la méthodologie retenue. Le
+troisième détaille la conception et l'implémentation de la solution,
+les résultats obtenus et leur validation. Enfin, la conclusion
+générale synthétise les contributions de ce travail, ses limites et
+les perspectives qu'il ouvre.
