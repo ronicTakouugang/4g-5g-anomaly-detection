@@ -40,8 +40,8 @@
 }
 \usepackage[french]{cleveref}
 
-% --- Bibliographie ---
-\usepackage[backend=biber,style=ieee]{biblatex}
+% --- Bibliographie : style auteur-année ---
+\usepackage[backend=biber,style=authoryear,maxcitenames=2,uniquelist=false]{biblatex}
 \addbibresource{references.bib}
 
 \graphicspath{{figures/}}
@@ -59,7 +59,7 @@
 \input{remerciements}
 \input{resume}
 \input{abstract}
-\input{sommaire}
+\tableofcontents
 \listoffigures
 \listoftables
 
@@ -78,9 +78,5 @@
 \input{conclusion}
 
 \printbibliography
-
-\clearpage
-\label{ch:toc}
-\tableofcontents
 
 \end{document}
