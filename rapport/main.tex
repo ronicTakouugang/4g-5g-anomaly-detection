@@ -1,0 +1,66 @@
+\documentclass[a4paper,11pt]{report}
+
+% --- Langue et encodage ---
+\usepackage[french]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+
+% --- Mise en page ---
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Figures, tableaux, couleurs ---
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+\usepackage{caption}
+\usepackage{subcaption}
+\usepackage{tikz}
+\usepackage{eso-pic}
+
+% --- Maths ---
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+% --- Code source ---
+\usepackage{listings}
+
+% --- Liens et références ---
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=black,
+    citecolor=black,
+    urlcolor=blue,
+}
+\usepackage[french]{cleveref}
+
+% --- Bibliographie ---
+\usepackage[backend=biber,style=ieee]{biblatex}
+\addbibresource{references.bib}
+
+\graphicspath{{figures/}}
+
+\title{Titre du rapport à définir}
+\author{Ronic}
+\date{\today}
+
+\begin{document}
+
+\input{titlepage}
+\tableofcontents
+
+\chapter{Introduction}
+
+\chapter{Contexte et état de l'art}
+
+\chapter{Méthodologie}
+
+\chapter{Résultats}
+
+\chapter{Conclusion}
+
+\printbibliography
+
+\end{document}
