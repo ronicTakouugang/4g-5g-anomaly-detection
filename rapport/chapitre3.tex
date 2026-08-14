@@ -1,0 +1,292 @@
+\chapter{Conception et implémentation de la solution}
+\label{chap:conception}
+
+Ce chapitre décrit la mise en œuvre concrète du pipeline présenté au
+chapitre~\ref{chap:etatart}~: l'environnement technique retenu, un
+raffinement apporté pour réduire la latence de détection, les
+résultats obtenus canal par canal, leur validation par confirmation
+multi-canal, et le tableau de bord 3D permettant de les explorer.
+
+\clearpage
+\section{Environnement et outils techniques}
+
+Le pipeline est entièrement implémenté en Python, au sein d'un
+notebook Jupyter unique couvrant l'ensemble du traitement, de
+l'ingestion des fichiers bruts à l'export des résultats
+(tableau~\ref{tab:stack}). Le calcul de la distance de
+Damerau-Levenshtein, potentiellement coûteux s'il devait être répété
+pour chacune des 10 000 grilles et 62 jours, s'appuie sur la
+bibliothèque \texttt{rapidfuzz}, qui implémente cette distance en C++
+avec une interface Python, plutôt que sur une implémentation naïve en
+Python pur.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Environnement et outils techniques}
+  \label{tab:stack}
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Usage} & \textbf{Technologie} \\
+    \midrule
+    Traitement des données        & Python, pandas, numpy \\
+    Distance d'édition            & rapidfuzz (Damerau-Levenshtein) \\
+    Géométrie / cartes statiques  & geopandas, folium, matplotlib \\
+    Analyse exploratoire          & Jupyter Notebook \\
+    Dashboard 3D                  & deck.gl, MapLibre GL JS, JavaScript vanilla \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+L'encodage d'une série de trafic horaire en niveaux (section
+\ref{sec:methodo} du chapitre précédent) est implémenté par une
+fonction vectorisée, appliquée indépendamment à chaque grille~: la
+médiane de la grille est calculée une fois, puis chaque valeur
+horaire est comparée aux seuils de la nomenclature par recherche
+dichotomique (\texttt{numpy.searchsorted}), ce qui évite une boucle
+explicite sur les 24 heures de chaque jour.
+
+\begin{lstlisting}[language=Python, basicstyle=\small\ttfamily, frame=single, caption={Encodage vectorisé d'une série horaire en niveaux A-F}, label={lst:encode}]
+LEVEL_THRESHOLDS = [0.43, 0.63, 1.00, 1.35, 2.10]
+ALPHABET = "ABCDEF"
+
+def encode_levels(values, thresholds=LEVEL_THRESHOLDS):
+    """Encode le trafic horaire d'une grille en niveaux 0..5,
+    relatifs a sa mediane."""
+    median = values.median()
+    if median == 0:
+        return pd.Series(0, index=values.index)
+    ratio = values / median
+    return np.searchsorted(thresholds, ratio, side="right")
+\end{lstlisting}
+
+\section{Réduction de la latence de détection~: fenêtre glissante}
+
+La méthode décrite au chapitre précédent détecte une anomalie une
+fois par jour calendaire~: il faut attendre minuit pour disposer de
+la signature complète et pouvoir la comparer à sa référence, ce qui
+introduit potentiellement jusqu'à 24 heures de latence entre le début
+d'un comportement anormal et sa détection. Un raffinement a donc été
+apporté~: plutôt que de recalculer la signature une fois par jour, on
+la recalcule \emph{à chaque heure}, sur une fenêtre glissante des 24
+dernières heures (tableau~\ref{tab:sliding}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Paramètres de la détection par fenêtre glissante}
+  \label{tab:sliding}
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Paramètre} & \textbf{Ce que c'est} & \textbf{Valeur retenue} \\
+    \midrule
+    Longueur de la fenêtre    & Nombre d'heures couvertes par la signature & 24 heures \\
+    Fréquence d'évaluation    & Cadence de recalcul de la distance         & 1 fois par heure \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Ce changement ne remet pas en cause la construction du profil de
+référence~: celui-ci n'est pas stocké comme une séquence associée à
+\emph{un jour}, mais case par case, par \emph{(grille, jour de
+semaine, heure)}. Une fenêtre chevauchant par exemple mardi soir et
+mercredi matin se compare donc simplement à deux portions de
+référence différentes, sans recalcul. Ce passage d'environ 52
+distances par grille (une par jour) à plus d'un millier (une par
+heure) améliore également l'estimation de l'écart type par grille, et
+donc la fiabilité du score z.
+
+Une fenêtre de 24 heures reste toutefois peu sensible à une anomalie
+très brève~: un pic isolé d'une seule heure ne modifie qu'une lettre
+sur 24 dans la signature, rarement suffisant pour franchir le seuil.
+Une seconde fenêtre, plus courte (6 heures), tourne donc en parallèle
+avec sa propre référence et son propre seuil, afin de ne pas perdre
+les pics brefs~; une alerte confirmée par les deux fenêtres est
+considérée comme plus fiable qu'une alerte isolée -- le même principe
+que la confirmation multi-canal de DiNATrAX~\parencite{maudoux2024dinatrax}
+et de ce travail (section~\ref{sec:multicanal}), appliqué ici à deux
+échelles temporelles plutôt qu'à deux canaux. Trois points ont
+nécessité une attention particulière à l'implémentation~: le
+regroupement des alertes consécutives déclenchées par une même
+anomalie prolongée (on ne conserve que le front montant, c'est-à-dire
+le premier franchissement du seuil jusqu'au retour en dessous), la
+gestion des grilles sans variance historique (écart type nul, pour
+lesquelles on bascule sur un seuil en valeur absolue), et le fait que
+la référence reste calculée hors ligne~: en production, chaque
+évaluation horaire ne coûte qu'une comparaison de deux séquences de
+24 caractères, quasi instantanée.
+
+Le tableau~\ref{tab:latence} illustre le gain obtenu sur l'anomalie la
+plus marquée détectée sur la période -- la grille 1421 le 1\textsuperscript{er}
+janvier 2014 (Nouvel An), avec un score z de bloc journalier de 5,00.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Gain de latence sur l'anomalie du Nouvel An (grille 1421, 1\textsuperscript{er} janvier 2014)}
+  \label{tab:latence}
+  \begin{tabular}{lc}
+    \toprule
+    \textbf{Méthode} & \textbf{Latence de détection} \\
+    \midrule
+    Bloc journalier (référence, chapitre~\ref{chap:etatart}) & jusqu'à 24 h (détectée à minuit) \\
+    Fenêtre glissante (premier franchissement à 12 h) & 13 h \\
+    \midrule
+    \textbf{Gain} & \textbf{11 h} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+\section{Résultats de la détection par canal}
+
+Le pipeline complet -- encodage, distance de Damerau-Levenshtein,
+score z, seuil à $z>3$ -- a été exécuté indépendamment sur les trois
+canaux disponibles, sur l'ensemble de la période couverte (62 jours,
+10 000 grilles). Le tableau~\ref{tab:resultats-canal} résume, pour
+chaque canal, le nombre de journées-grille détectées comme anormales
+et leur taux de correspondance avec le calendrier de repère construit
+manuellement (section~\ref{sec:calendrier}).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Résultats de la détection par canal}
+  \label{tab:resultats-canal}
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Canal} & \textbf{Anomalies détectées} & \textbf{Part des journées-grille} & \textbf{Correspondance calendaire} \\
+    \midrule
+    Internet & 2 484 & 0,48~\% & 86,8~\% \\
+    SMS      & 4 755 & 0,91~\% & 92,8~\% \\
+    Appels   & 6 468 & 1,24~\% & 97,6~\% \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Ces résultats appellent deux remarques. D'abord, les canaux SMS et
+appels, plus discrets et plus dispersés que le trafic Internet,
+produisent davantage d'anomalies en proportion, mais avec un taux de
+correspondance calendaire plus élevé~: un écart marqué sur un signal
+naturellement stable est plus significatif que le même écart sur un
+signal déjà bruité. Ensuite, la calibration des seuils de
+nomenclature sur les percentiles réels du trafic (plutôt que sur des
+valeurs rondes) réduit le nombre d'anomalies détectées de moitié tout
+en améliorant leur taux de correspondance calendaire (86,8~\% contre
+83,9~\% pour des seuils ronds sur le canal Internet), confirmant que
+cette calibration élimine surtout des faux positifs.
+
+\section{Confirmation multi-canal et validation calendaire}
+\label{sec:multicanal}
+
+\subsection{Calendrier de repère}
+\label{sec:calendrier}
+
+Un calendrier de repère a été construit manuellement pour la période
+étudiée, combinant jours fériés italiens et matchs à domicile joués à
+San Siro -- stade partagé par l'AC Milan et l'Inter
+(tableau~\ref{tab:calendrier}). Deux matchs (Milan-Ajax le 11
+décembre et Milan-Roma le 16 décembre) tombent dans une période sans
+données (fichiers manquants du 11 au 20 décembre) et sont conservés
+pour la complétude du calendrier, sans pouvoir être confrontés à une
+détection.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Calendrier de repère (jours fériés et matchs à San Siro)}
+  \label{tab:calendrier}
+  \small
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Date} & \textbf{Événement} \\
+    \midrule
+    01/11/2013 & Ognissanti (Toussaint, jour férié) \\
+    02/11/2013 & Milan -- Fiorentina (Serie A) \\
+    09/11/2013 & Inter -- Livorno (Serie A) \\
+    23/11/2013 & Milan -- Genoa (Serie A) \\
+    01/12/2013 & Inter -- Sampdoria (Serie A) \\
+    04/12/2013 & Inter -- Trapani (Coppa Italia) \\
+    07/12/2013 & Sant'Ambrogio (jour férié local, patron de Milan) \\
+    08/12/2013 & Immacolata Concezione (jour férié) + Inter -- Parma \\
+    11/12/2013 & Milan -- Ajax (Ligue des champions)$^{*}$ \\
+    16/12/2013 & Milan -- Roma (Serie A)$^{*}$ \\
+    22/12/2013 & Derby Milan -- Inter (Serie A) \\
+    24/12/2013 & Veille de Noël \\
+    25/12/2013 & Noël (jour férié) \\
+    26/12/2013 & Santo Stefano (jour férié) \\
+    01/01/2014 & Nouvel An (jour férié) \\
+    \bottomrule
+  \end{tabular}
+  \\[1mm]
+  {\footnotesize $^{*}$ Dans la période sans données (11--20 décembre).}
+\end{table}
+
+\subsection{Apport de la confirmation multi-canal}
+
+Sur l'ensemble des trois canaux, 11 440 journées-grille distinctes
+sont signalées comme anormales par au moins un canal. Seules 2 062
+d'entre elles (18~\%) le sont \emph{simultanément} par au moins deux
+canaux -- ce sous-ensemble atteint un taux de correspondance
+calendaire de 99,2~\% (2 045 sur 2 062), contre 86,8~\% à 97,6~\% pour
+une anomalie détectée sur un seul canal (figure~\ref{fig:multicanal}).
+Une anomalie confirmée sur plusieurs canaux constitue donc un signal
+nettement plus fiable qu'une anomalie isolée.
+
+\begin{figure}[htbp]
+  \centering
+  \begin{tikzpicture}
+    \begin{axis}[
+      ybar, bar width=22pt,
+      width=0.75\textwidth, height=6cm,
+      symbolic x coords={Internet,SMS,Appels,Confirmé ($\geq$2 canaux)},
+      xtick=data,
+      x tick label style={font=\footnotesize, align=center},
+      ymin=0, ymax=105,
+      ylabel={correspondance calendaire (\%)},
+      nodes near coords,
+      nodes near coords style={font=\footnotesize},
+      enlarge x limits=0.15,
+    ]
+      \addplot[fill=parisneutral] coordinates {
+        (Internet,86.8) (SMS,92.8) (Appels,97.6) (Confirmé ($\geq$2 canaux),99.2)
+      };
+    \end{axis}
+  \end{tikzpicture}
+  \caption{Taux de correspondance calendaire, par canal isolé puis pour les anomalies confirmées sur au moins deux canaux}
+  \label{fig:multicanal}
+\end{figure}
+
+\section{Tableau de bord 3D interactif}
+
+Les résultats sont explorables via un tableau de bord 3D
+(figure~\ref{fig:dashboard}), développé en JavaScript avec deck.gl et
+MapLibre GL JS, et chargé à la demande depuis un serveur HTTP local.
+La carte représente les 10 000 grilles de Milan sous forme de
+colonnes 3D dont la hauteur et la couleur encodent l'intensité du
+trafic à l'heure sélectionnée, les grilles en anomalie ce jour-là
+étant mises en évidence par une teinte distincte. L'interface propose
+un sélecteur de canal (Internet, SMS, appels), une navigation
+jour/heure avec lecture automatique, un mode de comparaison au profil
+normal (silhouette superposée), ainsi qu'un histogramme du nombre
+d'anomalies par jour permettant de naviguer directement vers les
+journées les plus atypiques.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=\textwidth]{dashboard-screenshot.jpg}
+  \caption{Tableau de bord 3D~: vue du 1\textsuperscript{er} novembre 2013 à 12h, jour de la Toussaint -- 13 grilles en anomalie ce jour-là (en rouge)}
+  \label{fig:dashboard}
+\end{figure}
+
+\section{Discussion des résultats}
+
+Les résultats obtenus répondent aux objectifs fixés au
+chapitre~\ref{chap:contexte}~: la méthode détecte, sans données
+étiquetées, un ensemble restreint et interprétable de journées
+atypiques par grille, dont une large majorité correspond à un
+événement calendaire connu -- et cette correspondance s'améliore
+franchement dès lors qu'on exige une confirmation sur plusieurs
+canaux. Le raffinement par fenêtre glissante montre par ailleurs
+qu'une contrainte opérationnelle (réduire la latence de détection)
+peut être satisfaite sans modifier le cœur de la méthode, en jouant
+uniquement sur la fréquence de réévaluation. Les anomalies non
+expliquées par le calendrier de repère (13,2~\% à 2,4~\% selon le
+canal, et moins de 1~\% pour les anomalies confirmées) restent le
+principal point ouvert~: sans vérité terrain, il n'est pas possible de
+distinguer, parmi elles, un événement réel non répertorié d'un faux
+positif résiduel.
