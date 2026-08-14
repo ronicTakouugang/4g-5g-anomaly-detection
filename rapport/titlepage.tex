@@ -1,0 +1,72 @@
+% Page de garde --- style inspiré du mémoire FON JUBAL, couleur du "8" Paris 8, désaturée
+\definecolor{parispurple}{RGB}{132,37,120}
+% teinte neutre, sourde, dérivée du violet du "8" (désaturée, pas un pastel flashy)
+\definecolor{parisneutral}{RGB}{130,87,124}
+
+\AddToShipoutPictureBG*{%
+  \begin{tikzpicture}[remember picture, overlay]
+    % bandeaux : couleur unie
+    \fill[parisneutral]
+      (current page.north west) rectangle ([yshift=-22mm]current page.north east);
+    \fill[parisneutral]
+      (current page.south west) rectangle ([yshift=23mm]current page.south east);
+
+    % zone blanche entre les deux filets, dessinée par-dessus, en dépassant
+    % légèrement le bord du bandeau (déjà blanc au-delà) pour ne laisser
+    % aucun bord coïncident -- source du mini-trait d'antialiasing
+    \fill[white] ([xshift=11mm]current page.north west) rectangle ([xshift=13.5mm,yshift=-23mm]current page.north west);
+    \fill[white] ([xshift=11mm]current page.south west) rectangle ([xshift=13.5mm,yshift=24mm]current page.south west);
+    \fill[white] ([xshift=-13.5mm]current page.north east) rectangle ([xshift=-11mm,yshift=-23mm]current page.north east);
+    \fill[white] ([xshift=-13.5mm]current page.south east) rectangle ([xshift=-11mm,yshift=24mm]current page.south east);
+
+    % filets verticaux : continus, sur fond blanc du haut en bas de la page
+    \foreach \d in {11mm,13.5mm}{
+      \draw[parisneutral, line width=0.4pt] ([xshift=\d]current page.south west) -- ([xshift=\d]current page.north west);
+      \draw[parisneutral, line width=0.4pt] ([xshift=-\d]current page.south east) -- ([xshift=-\d]current page.north east);
+    }
+
+    \node[white, font=\bfseries\large] at ([yshift=11.5mm]current page.south) {Année universitaire 2025 -- 2026};
+  \end{tikzpicture}%
+}
+
+\begin{titlepage}
+\centering
+\vspace*{10mm}
+
+\includegraphics[width=45mm]{logo_paris8.png}
+
+\vspace{5mm}
+{\bfseries\large UNIVERSITÉ PARIS 8 VINCENNES -- SAINT-DENIS\par}
+{\itshape UFR des Sciences et Technologies du Numérique (STN) -- MITSIC\par}
+
+\vspace{10mm}
+{\bfseries\Large Rapport de stage présenté en vue de la validation du\\
+Master 1 Informatique\par}
+\vspace{3mm}
+{\itshape Soutenance prévue les 7 et 8 septembre 2026\par}
+
+\vspace{12mm}
+{\bfseries Sujet :\par}
+\vspace{3mm}
+\fbox{%
+  \begin{minipage}{0.8\textwidth}
+    \centering
+    \vspace{3mm}
+    {\bfseries\LARGE DÉTECTION D'ANOMALIES DANS LE TRAFIC DES RÉSEAUX CELLULAIRES 4G/5G\par}
+    \vspace{3mm}
+  \end{minipage}%
+}
+
+\vspace{14mm}
+{\bfseries Rédigé et présenté par\par}
+\vspace{2mm}
+{\Large Ronic Takougang\par}
+
+\vspace{12mm}
+{\bfseries Sous l'encadrement académique de\par}
+\vspace{2mm}
+{\large Madame Selma BOUMERDASSI\\
+Maître de conférences et professeure à l'université\par}
+
+\vfill
+\end{titlepage}

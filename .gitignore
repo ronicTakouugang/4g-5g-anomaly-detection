@@ -7,3 +7,20 @@ __pycache__/
 .claude/
 .env
 .vscode/
+
+# LaTeX
+rapport/*.aux
+rapport/*.bbl
+rapport/*.bcf
+rapport/*.blg
+rapport/*.log
+rapport/*.out
+rapport/*.run.xml
+rapport/*.toc
+rapport/*.fdb_latexmk
+rapport/*.fls
+rapport/*.synctex.gz
+rapport/*.pdf
+
+# document tiers, pas à partager
+FON_JUBAL_MEMOIRE_MASTER2_DS_2024-2025*.pdf
