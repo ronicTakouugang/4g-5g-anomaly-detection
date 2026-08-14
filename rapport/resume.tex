@@ -1,0 +1,30 @@
+\chapter*{Résumé}
+\addcontentsline{toc}{chapter}{Résumé}
+
+Ce rapport présente une méthode de détection d'anomalies dans le trafic
+des réseaux cellulaires 4G/5G, appliquée aux données de trafic mobile
+(Internet, SMS, appels) de la ville de Milan, issues du jeu de données
+\emph{Telecom Italia Big Data Challenge}. L'approche proposée encode le
+profil horaire de trafic de chaque zone géographique sous la forme
+d'une signature de 24 lettres, chaque lettre correspondant à un niveau
+de trafic exprimé en multiple de la médiane horaire de la zone. Chaque
+signature journalière est ensuite comparée à un profil de référence,
+construit par consensus sur les jours de même type de semaine, à
+l'aide de la distance d'édition de Damerau-Levenshtein. Les distances
+obtenues sont converties en scores z par grille, ce qui permet
+d'isoler les journées présentant un comportement significativement
+atypique ($z > 3$). Le pipeline est appliqué indépendamment aux trois
+canaux de trafic (Internet, SMS, appels), et les anomalies détectées
+sont recoupées avec un calendrier d'événements (jours fériés, matchs à
+domicile de l'AC Milan et de l'Inter à San Siro). Les résultats
+montrent qu'une anomalie confirmée simultanément sur au moins deux
+canaux atteint un taux de correspondance calendaire de 99,2 \%, contre
+87 à 98 \% pour une anomalie détectée sur un seul canal, ce qui valide
+l'intérêt d'une approche multi-canal pour la fiabilité de la
+détection. Les résultats sont explorables via un tableau de bord 3D
+interactif.
+
+\vspace{4mm}
+\noindent\textbf{Mots-clés :} détection d'anomalies, réseaux cellulaires
+4G/5G, trafic mobile, distance de Damerau-Levenshtein, score z, séries
+temporelles, analyse multi-canal.
