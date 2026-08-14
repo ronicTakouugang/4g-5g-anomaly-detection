@@ -1,0 +1,32 @@
+\chapter*{Abstract}
+\addcontentsline{toc}{chapter}{Abstract}
+
+\selectlanguage{english}
+
+This report presents a method for detecting anomalies in 4G/5G
+cellular network traffic, applied to mobile traffic data (Internet,
+SMS, calls) from the city of Milan, drawn from the \emph{Telecom
+Italia Big Data Challenge} dataset. The proposed approach encodes the
+hourly traffic profile of each geographic grid cell as a 24-letter
+signature, where each letter represents a traffic level expressed as a
+multiple of the cell's hourly median. Each daily signature is then
+compared to a reference profile, built by consensus over days of the
+same weekday type, using the Damerau-Levenshtein edit distance. The
+resulting distances are converted into per-cell z-scores, making it
+possible to isolate days with significantly atypical behaviour
+($z > 3$). The pipeline is applied independently to the three traffic
+channels (Internet, SMS, calls), and detected anomalies are
+cross-referenced with a calendar of events (public holidays, AC Milan
+and Inter home matches at San Siro). Results show that an anomaly
+confirmed simultaneously on at least two channels reaches a 99.2\%
+calendar-match rate, compared to 87--98\% for an anomaly detected on a
+single channel, confirming the value of a multi-channel approach for
+detection reliability. Results can be explored through an interactive
+3D dashboard.
+
+\vspace{4mm}
+\noindent\textbf{Keywords:} anomaly detection, 4G/5G cellular networks,
+mobile traffic, Damerau-Levenshtein distance, z-score, time series,
+multi-channel analysis.
+
+\selectlanguage{french}
