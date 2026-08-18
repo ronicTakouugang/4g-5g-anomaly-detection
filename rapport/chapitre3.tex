@@ -374,6 +374,56 @@ qu'elle élimine surtout des faux positifs~: c'est ce compromis entre
 sensibilité à l'amplitude et lisibilité des résultats qui justifie le
 choix final.
 
+\subsection{Méthode de calibration des seuils}
+
+Les seuils de la nomenclature retenue (tableau~\ref{tab:levels},
+chapitre~\ref{chap:etatart}) ne sont pas fixés arbitrairement~: ils
+correspondent aux percentiles 1/5/20/50/80/95/99 de la distribution
+empirique du rapport \emph{(valeur horaire)~/~(médiane de la
+grille)}, calculée sur l'ensemble du canal Internet -- environ
+12,5 millions d'observations. Cette calibration a été motivée par un
+problème constaté sur la première tentative de seuils \emph{ronds}
+(puissances de 2~: 0,25/0,5/1/2/4$\times$)~: la répartition des six
+lettres obtenue était très déséquilibrée, la seule lettre D
+concentrant à elle seule 44~\% des heures observées, ce qui réduisait
+d'autant le pouvoir discriminant de la signature. Caler les seuils sur
+les percentiles réels rééquilibre les six lettres tout en conservant à
+chacune un sens physique clair (tableau~\ref{tab:levels}).
+
+\subsection{Calibration par canal}
+
+Cette même méthode a été répétée indépendamment pour les canaux SMS
+et appels, avec des percentiles (5/20/50/80/95) mesurés séparément sur
+chaque canal, produisant des seuils très différents de ceux
+d'Internet (tableau~\ref{tab:seuils-canaux}). Le seuil central
+(frontière C/D) vaut toujours 1$\times$ par construction~: c'est la
+médiane elle-même. En revanche, les seuils extrêmes s'écartent
+fortement d'un canal à l'autre~: sur Internet, la moitié des heures se
+situent entre 0,63$\times$ et 1,35$\times$ la médiane, alors que sur
+les appels, la moitié des heures sont en dessous de la moitié de la
+médiane -- un signal beaucoup plus en rafale, avec de longues plages
+de faible activité coupées de pics ponctuels. Réutiliser tel quel le
+seuil Internet sur le canal appels aurait classé jusqu'à 37~\% des
+heures en niveau A, contre une répartition à peu près équilibrée une
+fois les seuils recalibrés~: sans ce réajustement par canal, la
+signature perd une grande partie de son pouvoir discriminant sur SMS
+et appels.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Seuils de nomenclature calibrés par canal (en multiple de la médiane de la grille)}
+  \label{tab:seuils-canaux}
+  \begin{tabular}{lccccc}
+    \toprule
+    \textbf{Canal} & \textbf{A/B} & \textbf{B/C} & \textbf{C/D} & \textbf{D/E} & \textbf{E/F} \\
+    \midrule
+    Internet & 0,43$\times$ & 0,63$\times$ & 1,00$\times$ & 1,35$\times$ & 2,10$\times$ \\
+    SMS      & 0,03$\times$ & 0,17$\times$ & 1,00$\times$ & 1,63$\times$ & 2,69$\times$ \\
+    Appels   & 0,01$\times$ & 0,09$\times$ & 1,00$\times$ & 2,29$\times$ & 3,73$\times$ \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
 \subsection{Anomalies détectées sur la période}
 
 La figure~\ref{fig:anomalies-jour} représente, pour chaque jour de la
@@ -588,12 +638,36 @@ détection.
 \subsection{Apport de la confirmation multi-canal}
 
 Sur l'ensemble des trois canaux, 11 440 journées-grille distinctes
-sont signalées comme anormales par au moins un canal. Seules 2 062
-d'entre elles (18~\%) le sont \emph{simultanément} par au moins deux
-canaux -- ce sous-ensemble atteint un taux de correspondance
-calendaire de 99,2~\% (2 045 sur 2 062), contre 86,8~\% à 97,6~\% pour
-une anomalie détectée sur un seul canal (figure~\ref{fig:multicanal}).
-Une anomalie confirmée sur plusieurs canaux constitue donc un signal
+sont signalées comme anormales par au moins un canal. Le
+tableau~\ref{tab:n-canaux} détaille cette union selon le nombre de
+canaux qui la signalent simultanément~: la grande majorité (9 378,
+soit 82~\%) n'est vue que par un seul canal, 1 857 par exactement
+deux, et seulement 205 par les trois canaux à la fois -- le noyau dur
+des anomalies les plus incontestables du jeu de données.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Journées-grille anormales, par nombre de canaux les signalant simultanément}
+  \label{tab:n-canaux}
+  \begin{tabular}{cc}
+    \toprule
+    \textbf{Nombre de canaux} & \textbf{Journées-grille} \\
+    \midrule
+    1 (isolée)        & 9 378 \\
+    2                  & 1 857 \\
+    3 (tous les canaux) & 205 \\
+    \midrule
+    \textbf{Total (union)} & \textbf{11 440} \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+En regroupant les journées vues par deux canaux ou plus, 2 062
+d'entre elles (18~\% de l'union) sont \emph{confirmées}~: ce
+sous-ensemble atteint un taux de correspondance calendaire de
+99,2~\% (2 045 sur 2 062), contre 86,8~\% à 97,6~\% pour une anomalie
+détectée sur un seul canal (figure~\ref{fig:multicanal}). Une
+anomalie confirmée sur plusieurs canaux constitue donc un signal
 nettement plus fiable qu'une anomalie isolée.
 
 \begin{figure}[htbp]
