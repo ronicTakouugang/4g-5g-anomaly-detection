@@ -34,7 +34,17 @@ trois écarts types de la moyenne~:
 Cette règle est simple, peu coûteuse à calculer et largement utilisée
 en supervision de systèmes, mais elle suppose une distribution stable
 dans le temps et ne tient pas compte de la structure temporelle du
-signal (tendance, saisonnalité).
+signal (tendance, saisonnalité). La figure~\ref{fig:control-chart}
+illustre le principe~: une ligne centrale (moyenne du processus) et
+deux limites de contrôle à $\pm 3\sigma$, tout point sorti de cette
+bande étant considéré hors contrôle.
+
+\begin{figure}[htbp]
+  \centering
+  \includegraphics[width=0.7\textwidth]{control-chart.png}
+  \caption[Carte de contrôle à trois sigmas]{Carte de contrôle à trois sigmas~: ligne centrale, limites de contrôle supérieure (UCL) et inférieure (LCL) \parencite{penfield2007control}.}
+  \label{fig:control-chart}
+\end{figure}
 
 \paragraph{Détection par résidus de prévision (ARIMA).}
 Une variante plus riche consiste à ajuster un modèle de prévision --
