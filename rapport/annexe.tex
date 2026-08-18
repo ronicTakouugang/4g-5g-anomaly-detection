@@ -20,3 +20,67 @@ def encode_levels(values, thresholds=LEVEL_THRESHOLDS):
     ratio = values / median
     return np.searchsorted(thresholds, ratio, side="right")
 \end{lstlisting}
+
+\clearpage
+\chapter*{Annexe B -- Extrait de code (fenêtre glissante)}
+\addcontentsline{toc}{chapter}{Annexe B -- Extrait de code (fenêtre glissante)}
+\label{annexe:code-fenetre}
+
+Cette annexe reproduit les deux fonctions au cœur de la détection par
+fenêtre glissante (section~\ref{sec:fenetre-glissante},
+chapitre~\ref{chap:conception})~: le calcul de la distance
+d'édition sur une fenêtre de longueur fixe glissée heure par heure, et
+le regroupement des alertes consécutives par une même anomalie
+prolongée (ne conserver que le \og{}front montant\fg{}).
+
+\begin{lstlisting}[language=Python, basicstyle=\small\ttfamily, frame=single, caption={Distance sur fenêtre glissante et regroupement des alertes}, label={lst:sliding}]
+def sliding_distances(obs, ref, win, block_dates):
+    """Distance pour chaque fenetre glissante ; timestamp = (date,
+    heure) de la FIN de la fenetre."""
+    base = block_dates[0]
+    out_d, out_ts = [], []
+    for i in range(0, len(obs) - win + 1):
+        out_d.append(DamerauLevenshtein.distance(
+            obs[i:i+win], ref[i:i+win]))
+        end_pos = i + win - 1
+        out_ts.append((base + pd.Timedelta(days=end_pos // 24),
+                        end_pos % 24))
+    return out_d, out_ts
+
+def debounce(is_anomaly):
+    """Ne garde que les fronts montants : une anomalie qui dure 24h
+    compte pour 1 incident, pas pour 24 alertes distinctes."""
+    onsets = []
+    prev = False
+    for i, v in enumerate(is_anomaly):
+        if v and not prev:
+            onsets.append(i)
+        prev = v
+    return onsets
+\end{lstlisting}
+
+\clearpage
+\chapter*{Annexe C -- Liste des abréviations}
+\addcontentsline{toc}{chapter}{Annexe C -- Liste des abréviations}
+\label{annexe:abreviations}
+
+\begin{table}[htbp]
+  \centering
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Abréviation} & \textbf{Signification} \\
+    \midrule
+    4G/5G  & Réseaux mobiles de quatrième et cinquième génération \\
+    RAN    & \emph{Radio Access Network} (réseau d'accès radio) \\
+    UE     & \emph{User Equipment} (terminal utilisateur) \\
+    CDR    & \emph{Call Detail Record} (enregistrement détaillé d'activité) \\
+    ARIMA  & \emph{AutoRegressive Integrated Moving Average} \\
+    SVM    & \emph{Support Vector Machine} \\
+    SAX    & \emph{Symbolic Aggregate approXimation} \\
+    PAA    & \emph{Piecewise Aggregate Approximation} \\
+    UCL / LCL & Limite de contrôle supérieure / inférieure (\emph{Upper/Lower Control Limit}) \\
+    ODbL   & \emph{Open Database License} \\
+    ADN    & Signature journalière de 24 lettres (par analogie avec DiNATrAX) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
