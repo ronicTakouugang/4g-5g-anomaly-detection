@@ -17,9 +17,12 @@ l'ingestion des fichiers bruts à l'export des résultats
 (tableau~\ref{tab:stack}). Le calcul de la distance de
 Damerau-Levenshtein, potentiellement coûteux s'il devait être répété
 pour chacune des 10 000 grilles et 62 jours, s'appuie sur la
-bibliothèque \texttt{rapidfuzz}, qui implémente cette distance en C++
-avec une interface Python, plutôt que sur une implémentation naïve en
-Python pur.
+bibliothèque \texttt{rapidfuzz}~\parencite{rapidfuzz2020github}, qui
+implémente cette distance en C++ avec une interface Python, plutôt
+que sur une implémentation naïve en Python pur. Le tableau de bord 3D
+s'appuie quant à lui sur deck.gl~\parencite{deckgl2016site} pour le
+rendu des colonnes 3D et MapLibre GL JS~\parencite{maplibre2021site}
+pour le fond de carte.
 
 \begin{table}[htbp]
   \centering

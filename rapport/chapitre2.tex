@@ -24,7 +24,7 @@ pour le contexte étudié closent la section.
 
 \paragraph{Cartes de contrôle et règle des trois sigmas.}
 Issue du contrôle statistique de la qualité industrielle
-(Shewhart, 1931), cette approche modélise un signal normal comme une
+\parencite{shewhart1931economic}, cette approche modélise un signal normal comme une
 variable aléatoire de moyenne $\mu$ et d'écart type $\sigma$, et
 signale comme anormale toute observation $x_t$ s'écartant de plus de
 trois écarts types de la moyenne~:
@@ -272,10 +272,12 @@ classique en précision/rappel.
 \subsection{Source de données}
 
 Les données proviennent du jeu \emph{Telecom Italia Big Data
-Challenge}~\parencite{telecomitalia2015dataset} (tableau~\ref{tab:dataset}), qui regroupe plusieurs types
-de données (télécommunications, météo, réseaux sociaux, actualités,
-consommation électrique) collectées sur la ville de Milan et la
-province du Trentin. Ce travail n'utilise que les données de
+Challenge}~\parencite{telecomitalia2015dataset}, décrit et documenté
+par \textcite{barlacchi2015multisource} (tableau~\ref{tab:dataset}),
+qui regroupe plusieurs types de données (télécommunications, météo,
+réseaux sociaux, actualités, consommation électrique) collectées sur
+la ville de Milan et la province du Trentin. Ce travail n'utilise que
+les données de
 télécommunications de la ville de Milan.
 
 \begin{table}[htbp]
@@ -485,7 +487,8 @@ chaque jour de semaine.
 L'écart entre la signature d'une journée réelle et son profil de
 référence est mesuré par la distance de Damerau-Levenshtein, qui
 compte le nombre minimal d'opérations élémentaires -- insertion,
-suppression, substitution, ou transposition de deux lettres adjacentes
+suppression, substitution~\parencite{levenshtein1966binary}, ou
+transposition de deux lettres adjacentes~\parencite{damerau1964technique}
 -- nécessaires pour transformer une séquence en l'autre. L'ajout de la
 transposition par rapport à la distance de Levenshtein classique est
 important ici~: un décalage d'une heure dans un pic de trafic se
