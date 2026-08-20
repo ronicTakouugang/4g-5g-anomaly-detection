@@ -84,3 +84,90 @@ def debounce(is_anomaly):
     \bottomrule
   \end{tabular}
 \end{table}
+
+\clearpage
+\chapter*{Annexe D -- Liste complète des vingt anomalies les plus marquées}
+\addcontentsline{toc}{chapter}{Annexe D -- Liste complète des vingt anomalies les plus marquées}
+\label{annexe:top20}
+
+Cette annexe complète le tableau~\ref{tab:top-anomalies} du
+chapitre~\ref{chap:conception} (limité aux dix premières lignes) avec
+les vingt journées-grille au score z le plus élevé sur l'ensemble de
+la période étudiée (canal Internet).
+
+\begin{table}[htbp]
+  \centering
+  \caption{Vingt journées-grille au score z le plus élevé (canal Internet)}
+  \label{tab:top-anomalies-20}
+  \begin{tabular}{clccc}
+    \toprule
+    \textbf{Rang} & \textbf{Grille} & \textbf{Date} & \textbf{Distance} & \textbf{Score z} \\
+    \midrule
+    1  & 1421 & 01/01/2014 & 20 & 5,00 \\
+    2  & 9868 & 25/12/2013 & 18 & 4,93 \\
+    3  & 1316 & 01/01/2014 & 22 & 4,85 \\
+    4  & 1118 & 01/01/2014 & 21 & 4,77 \\
+    5  & 7952 & 25/12/2013 & 22 & 4,66 \\
+    6  & 1420 & 01/01/2014 & 20 & 4,61 \\
+    7  & 8343 & 01/01/2014 & 20 & 4,58 \\
+    8  & 919  & 25/12/2013 & 20 & 4,54 \\
+    9  & 4527 & 24/11/2013 & 20 & 4,52 \\
+    10 & 8243 & 01/01/2014 & 20 & 4,51 \\
+    11 & 1217 & 01/01/2014 & 21 & 4,48 \\
+    12 & 1233 & 01/01/2014 & 17 & 4,40 \\
+    13 & 9005 & 01/01/2014 & 17 & 4,40 \\
+    14 & 717  & 25/12/2013 & 19 & 4,37 \\
+    15 & 1013 & 01/01/2014 & 22 & 4,36 \\
+    16 & 2798 & 01/01/2014 & 18 & 4,36 \\
+    17 & 1045 & 01/01/2014 & 18 & 4,34 \\
+    18 & 7896 & 25/12/2013 & 20 & 4,33 \\
+    19 & 7895 & 25/12/2013 & 20 & 4,33 \\
+    20 & 523  & 25/12/2013 & 20 & 4,32 \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Sur ces vingt cas, dix-neuf tombent le 1\textsuperscript{er} janvier
+2014 (Nouvel An) ou le 25 décembre 2013 (Noël)~; seule la grille 4527,
+le 24 novembre 2013 (un dimanche), reste sans explication calendaire
+directe -- confirmant, à une échelle plus large que le
+tableau~\ref{tab:top-anomalies}, que les anomalies les plus extrêmes
+du jeu de données sont presque toutes rattachées aux deux mêmes
+journées exceptionnelles.
+
+\clearpage
+\chapter*{Annexe E -- Glossaire}
+\addcontentsline{toc}{chapter}{Annexe E -- Glossaire}
+\label{annexe:glossaire}
+
+\begin{description}
+  \item[Grille] Zone géographique carrée parmi les 10 000 composant
+    le maillage de la ville de Milan~; unité spatiale de base de
+    toute l'analyse.
+  \item[Signature (ou ADN)] Séquence de 24 lettres encodant le niveau
+    de trafic horaire d'une grille sur une journée et un canal
+    donnés.
+  \item[Profil de référence] Séquence consensus, construite par
+    grille et par jour de semaine, représentant le comportement
+    \og{}normal\fg{} attendu.
+  \item[Distance d'édition] Nombre minimal d'opérations
+    (insertion, suppression, substitution, transposition)
+    nécessaires pour transformer une séquence en une autre.
+  \item[Score z] Écart d'une distance à la moyenne des distances
+    observées pour une même grille, exprimé en nombre d'écarts
+    types.
+  \item[Journée-grille] Couple (grille, jour) considéré comme unité
+    d'observation pour la détection~: chaque journée-grille reçoit sa
+    propre signature, son propre profil de référence et son propre
+    score z.
+  \item[Canal] Type de trafic mobile analysé indépendamment~:
+    Internet, SMS ou appels, chacun avec ses propres seuils de
+    nomenclature calibrés séparément.
+  \item[Front montant] Premier instant où une alerte franchit le
+    seuil d'anomalie, utilisé pour regrouper les alertes consécutives
+    dues à une même anomalie prolongée en un seul incident.
+  \item[Correspondance calendaire] Proportion des anomalies détectées
+    qui tombent un jour du calendrier de repère (jour férié ou match
+    à San Siro), utilisée comme indicateur indirect de fiabilité en
+    l'absence de vérité terrain étiquetée.
+\end{description}
