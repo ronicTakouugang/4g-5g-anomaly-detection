@@ -9,6 +9,7 @@
 \usepackage{mathptmx}
 
 % --- Mise en page ---
+\usepackage{calc}
 \usepackage[margin=2.5cm]{geometry}
 \usepackage{setspace}
 \onehalfspacing
@@ -43,9 +44,21 @@
 }
 \usepackage[french]{cleveref}
 
-% --- Bibliographie : style auteur-année ---
+% --- Bibliographie : style auteur-année, avec numéros devant chaque référence ---
 \usepackage[backend=biber,style=authoryear,maxcitenames=2,uniquelist=false]{biblatex}
 \addbibresource{references.bib}
+
+\newcounter{bibnumero}
+\defbibenvironment{bibliography}
+  {\list{\arabic{bibnumero}.}
+    {\usecounter{bibnumero}
+     \setcounter{bibnumero}{0}
+     \setlength{\labelwidth}{2em}
+     \setlength{\leftmargin}{\labelwidth+\labelsep}
+     \setlength{\itemsep}{\bibitemsep}
+     \setlength{\parsep}{\bibparsep}}}
+  {\endlist}
+  {\item}
 
 \graphicspath{{figures/}}
 
