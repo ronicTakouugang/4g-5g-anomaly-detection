@@ -719,6 +719,109 @@ journées les plus atypiques.
   \label{fig:dashboard}
 \end{figure}
 
+\section{Comparaison avec le framework DiNATrAX original}
+\label{sec:comparaison-dinatrax}
+
+Ce travail s'inspire du framework
+DiNATrAX~\parencite{maudoux2024dinatrax}, dont l'article original
+applique une méthode voisine -- encodage d'une activité réseau en
+signature, distance de Damerau-Levenshtein, alerte en cas d'écart
+important -- à des données de trafic mobile fournies par l'opérateur
+Orange sur la région Île-de-France (2\,736 stations de base). Les
+deux démarches partagent le même principe central, mais diffèrent
+sensiblement dans leur mise en \oe uvre et leur échelle de validation
+(tableau~\ref{tab:comparaison-dinatrax}), ce qui invite à nuancer
+toute comparaison directe des résultats chiffrés.
+
+\begin{table}[htbp]
+  \centering
+  \caption{Comparaison entre le framework DiNATrAX original et ce travail}
+  \label{tab:comparaison-dinatrax}
+  \small
+  \begin{tabular}{lp{5.4cm}p{5.4cm}}
+    \toprule
+    \textbf{Dimension} & \textbf{DiNATrAX original~\parencite{maudoux2024dinatrax}} & \textbf{Ce travail} \\
+    \midrule
+    Données sources &
+      Trafic Orange (GSM, Île-de-France), agrégé par station de base
+      puis par secteur, selon le type d'application (\emph{appGroup},
+      19 catégories) &
+      Telecom Italia Big Data Challenge (Milan), trafic Internet, SMS
+      et appels agrégé par grille de 235~m \\
+    Zones analysées &
+      Une dizaine de \emph{Sectors of Interest} choisis manuellement
+      (Stade de France, Gare de Lyon, Notre-Dame, etc.) &
+      10\,000 grilles, traitées systématiquement, sans sélection
+      manuelle \\
+    Période étudiée &
+      1 mois (avril 2019) ; étude de cas détaillée sur 4 samedis &
+      62 jours consécutifs (nov.\ 2013 -- janv.\ 2014), ensemble de la
+      période \\
+    Construction de la signature &
+      Clustering \emph{K-Means} (4 clusters) sur la caractéristique
+      choisie, séquences de lettres triées par volume &
+      Encodage déterministe à seuils fixes (6 niveaux A-F), calibrés
+      une fois sur les percentiles réels, sans ré-ajustement d'un
+      modèle à chaque pas de temps \\
+    Distance et seuil &
+      Distance de Damerau-Levenshtein sur le DNA et sur le
+      \emph{strand} (ANOD = DNAD + STAD) ; lecture qualitative des
+      valeurs obtenues, sans seuil statistique formalisé &
+      Distance de Damerau-Levenshtein sur la signature de 24 lettres,
+      convertie en score z par grille ; seuil $z>3$, normalisé donc
+      comparable d'une grille à l'autre malgré des variances
+      différentes \\
+    Confirmation multi-signal &
+      Non -- une seule caractéristique $\mathcal{F}$ analysée à la fois &
+      Oui -- trois canaux traités indépendamment, avec confirmation
+      croisée (section~\ref{sec:multicanal}) \\
+    Latence de détection &
+      Non traitée (analyse a posteriori par tranche de 24~h) &
+      Réduite par détection à fenêtre glissante, gain de 11~h démontré
+      (section~\ref{sec:fenetre-glissante}) \\
+    Validation &
+      Qualitative -- recherche manuelle d'un événement expliquant
+      chacune des anomalies détectées &
+      Quantitative -- calendrier de 15 événements croisé
+      systématiquement avec l'ensemble des anomalies détectées \\
+    Résultats rapportés &
+      7 anomalies détectées et corrélées à un événement réel, sur 5
+      zones distinctes &
+      2\,484 à 6\,468 anomalies selon le canal (0,48 à 1,24~\% des
+      journées-grille), 86,8 à 99,2~\% de correspondance calendaire
+      selon le nombre de canaux confirmant l'anomalie \\
+    Restitution &
+      Cartes statiques (fond OpenStreetMap) &
+      Tableau de bord 3D interactif (deck.gl + MapLibre GL JS) \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Cette comparaison ne doit pas être lue comme un classement~: les deux
+travaux ne portent ni sur les mêmes données, ni sur la même
+caractéristique de trafic, et les 7 anomalies de l'article original
+sont sélectionnées et validées manuellement, contre plusieurs milliers
+ici évaluées de façon systématique -- les pourcentages de
+correspondance calendaire des deux études ne sont donc pas
+directement commensurables. La contribution de ce travail par rapport
+à l'article original porte plutôt sur l'\emph{opérationnalisation} du
+même principe~: remplacer le clustering K-Means (dont le nombre de
+clusters doit être choisi et qui doit être recalculé à chaque tranche
+temporelle) par un encodage à seuils fixes calibrés une seule fois,
+ce qui rend la signature directement comparable d'un jour à l'autre
+sans réapprentissage~; remplacer la lecture qualitative des distances
+d'anormalité par un score z normalisé, seuillable de façon uniforme
+sur des dizaines de milliers de grilles aux dynamiques très
+différentes~; étendre la détection à plusieurs canaux avec
+confirmation croisée, une dimension absente de l'article original~;
+et réduire la latence de détection par une fenêtre glissante. En
+contrepartie, l'encodage par clustering de DiNATrAX reste plus général
+que l'encodage à seuils fixes retenu ici~: il s'applique tel quel à
+une caractéristique catégorielle à plusieurs modalités (le type
+d'application, dans l'article original), là où l'encodage à seuils
+fixes suppose une grandeur continue et ordonnée -- un volume de
+trafic -- rapportée à une valeur de référence.
+
 \section{Discussion des résultats}
 
 Les résultats obtenus répondent aux objectifs fixés au
