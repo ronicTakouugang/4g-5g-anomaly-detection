@@ -2,5 +2,113 @@
 \addcontentsline{toc}{chapter}{Conclusion générale}
 \label{ch:conclusion}
 
-\emph{Cette section sera rédigée une fois les résultats du chapitre~3
-consolidés.}
+Au terme de ce rapport, consacré à la conception et à l'évaluation
+d'une méthode de détection d'anomalies dans le trafic des réseaux
+cellulaires 4G/5G, il convient de revenir sur les apports de ce
+travail, ses limites, et les perspectives qu'il ouvre. La
+problématique posée en introduction était double~: comment distinguer
+une variation normale du trafic mobile -- heures de pointe,
+week-ends, saisonnalité -- d'un comportement réellement atypique, à
+l'échelle d'une métropole entière et de plusieurs canaux de
+communication, sans disposer d'anomalies déjà étiquetées pour
+entraîner un modèle supervisé~? Pour y répondre, ce travail s'est
+appuyé sur le framework académique
+DiNATrAX~\parencite{maudoux2024dinatrax}, en l'appliquant à des
+données réelles de trafic Internet, SMS et appels de la ville de
+Milan.
+
+\section*{Synthèse des contributions}
+
+Les résultats obtenus répondent, un à un, aux objectifs spécifiques
+fixés au chapitre~\ref{chap:contexte}. Le profil horaire de trafic de
+chaque grille a été encodé sous une forme compacte et comparable --
+une signature de 24 lettres, dont les six niveaux sont calibrés sur
+les percentiles réels du trafic plutôt que sur des seuils ronds
+arbitraires, ce qui rééquilibre le pouvoir discriminant de la
+signature (section~\ref{sec:comparaison-encodage}). Cette signature,
+comparée à un profil de référence par distance de
+Damerau-Levenshtein puis convertie en score z, permet d'isoler, sans
+aucune donnée étiquetée, un ensemble restreint de journées atypiques
+par grille~: 2\,484 sur le canal Internet, 4\,755 sur SMS et 6\,468
+sur les appels (tableau~\ref{tab:resultats-canal}), avec des taux de
+correspondance calendaire allant de 86,8~\% à 97,6~\% selon le canal.
+Appliquée indépendamment aux trois canaux, la détection confirme
+surtout l'intérêt d'un croisement multi-canal~: une anomalie signalée
+simultanément par au moins deux canaux atteint 99,2~\% de
+correspondance calendaire, contre 86,8 à 97,6~\% pour un canal isolé
+(section~\ref{sec:multicanal}) -- la preuve la plus nette que la
+méthode retenue produit un signal fiable plutôt qu'un simple artefact
+statistique.
+
+Un raffinement par fenêtre glissante a en outre permis de réduire la
+latence de détection, initialement bornée à 24 heures par la
+granularité journalière du bloc de référence, jusqu'à un gain de
+11 heures sur le cas étudié (grille 1421, 1\textsuperscript{er} janvier
+2014, tableau~\ref{tab:latence}), sans modifier le cœur de la méthode
+-- uniquement la fréquence de réévaluation. Ce raffinement montre
+qu'une contrainte opérationnelle de supervision en quasi temps réel
+peut être satisfaite à moindre coût de calcul. Enfin, l'ensemble de
+ces résultats est explorable via un tableau de bord 3D interactif
+(deck.gl, MapLibre GL JS), qui rend directement exploitables les
+anomalies détectées pour un usage opérationnel de supervision réseau.
+
+\section*{Limites}
+
+Ce travail présente néanmoins plusieurs limites, déjà en partie
+identifiées au chapitre~\ref{chap:contexte} et confirmées par les
+résultats du chapitre~\ref{chap:conception}. D'abord, les données
+utilisées portent sur une seule ville et une période de deux mois
+(novembre-décembre 2013)~: les seuils de nomenclature, calibrés sur
+les percentiles réels de ce jeu de données précis, ne sont donc pas
+directement transposables à un autre contexte géographique, temporel,
+ou à un opérateur différent, sans nouvelle calibration. Ensuite, la
+validation des anomalies détectées repose sur un calendrier de repère
+construit manuellement (jours fériés, matchs à San Siro), qui reste
+partiel par construction~: les anomalies sans explication calendaire
+identifiée (13,2~\% à 2,4~\% selon le canal, moins de 1~\% pour les
+anomalies confirmées) ne sont pas nécessairement des faux positifs,
+mais en l'absence de vérité terrain fournie par un opérateur réseau,
+il n'est pas possible de trancher, au cas par cas, entre un événement
+réel non répertorié et un signal résiduel sans cause identifiable.
+Enfin, le jeu de données ne distingue pas les usages 4G des usages 5G
+à proprement parler, la technologie 5G n'étant pas encore déployée
+sur la période couverte~; l'approche reste conceptuellement
+transposable à des données de trafic 5G actuelles, mais cette
+transposition n'a pas été testée dans ce travail.
+
+\section*{Perspectives}
+
+Ces limites ouvrent plusieurs pistes de prolongement concrètes.
+Premièrement, un rapprochement avec les équipes d'exploitation d'un
+opérateur réseau permettrait de confronter les anomalies détectées à
+un historique réel d'incidents (pannes, maintenance, saturation), et
+de remplacer le calendrier de repère -- un proxy utile mais
+imparfait -- par une véritable vérité terrain, seule capable de
+mesurer précision et rappel effectifs de la méthode. Deuxièmement, la
+même méthode pourrait être appliquée à d'autres villes, sur une
+période plus longue et sur des données 5G actuelles, afin de vérifier
+la stabilité de l'approche et de déterminer si les seuils doivent
+être recalibrés à chaque déploiement ou si des valeurs par défaut
+raisonnables peuvent être dégagées. Troisièmement, la détection par
+fenêtre glissante, déjà conçue pour ne coûter qu'une comparaison de
+deux séquences de 24 caractères par évaluation horaire
+(section~\ref{sec:fenetre-glissante}), ouvre la voie à un système
+d'alerte fonctionnant directement sur un flux de trafic en continu,
+plutôt que sur une analyse a posteriori de fichiers journaliers.
+Quatrièmement, le calendrier de repère pourrait être enrichi d'autres
+sources d'événements locaux (travaux, incidents météorologiques,
+actualité de la ville), afin de réduire la part d'anomalies
+résiduelles laissées sans explication. Enfin, une fois une vérité
+terrain disponible grâce aux pistes précédentes, il deviendrait
+possible d'entraîner des modèles supervisés ou semi-supervisés et de
+les comparer à la méthode non supervisée développée ici, qui
+conserverait alors son rôle de référence robuste, applicable sans
+délai à un nouveau déploiement dépourvu de données étiquetées.
+
+En définitive, ce travail montre qu'une méthode de détection
+d'anomalies simple dans son principe -- encoder, comparer, seuiller --
+peut, appliquée avec rigueur à des données réelles et validée par un
+croisement multi-canal, produire un signal suffisamment fiable pour
+répondre à un enjeu opérationnel concret de supervision des réseaux
+mobiles 4G/5G, sans jamais nécessiter de données étiquetées au
+préalable.
