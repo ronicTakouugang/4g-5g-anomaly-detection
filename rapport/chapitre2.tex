@@ -89,11 +89,11 @@ proche de 1 indique une forte probabilité d'anomalie
     \foreach \p in {(6.2,7.1),(6.8,6.5),(7.3,7.8),(6.5,6.9),(7.7,7.2),(7.0,7.5),(6.9,6.3),(7.5,6.8),(7.1,7.0),(6.6,7.4)}
       \fill \p circle (2.5pt);
     \fill[red] (1.2,1.5) circle (3pt);
-    \node[red, font=\footnotesize] at (2.6,1.9) {point anormal};
+    \node[red, font=\footnotesize, anchor=west] at (1.6,1.5) {point anormal};
     \draw[dashed, blue] (3,0) -- (3,10);
     \draw[dashed, blue] (0,3.2) -- (10,3.2);
-    \node[blue, font=\footnotesize] at (1.5,9.4) {coupe 1 ($x<3$)};
-    \node[blue, font=\footnotesize] at (8.3,1.0) {coupe 2 ($y<3{,}2$)};
+    \node[blue, font=\footnotesize] at (3,10.7) {coupe 1 ($x<3$)};
+    \node[blue, font=\footnotesize, anchor=west] at (10.3,3.2) {coupe 2 ($y<3{,}2$)};
   \end{tikzpicture}
   \caption[Principe de l'isolation forest]{Principe de l'isolation forest~: un point isolé (rouge) est séparé du reste des observations en très peu de coupes aléatoires, alors qu'un point situé dans une zone dense (noir) nécessite beaucoup plus de coupes pour être isolé \parencite{liu2008isolation}.}
   \label{fig:isoforest}
