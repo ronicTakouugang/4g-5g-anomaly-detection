@@ -1,4 +1,4 @@
-# 4G/5G Anomaly Detection — Milan
+# A Sequence-Based Digital Signature Approach for Anomaly Detection in Real-World Milan Telecommunication Dataset
 
 Détection d'anomalies dans le trafic mobile (Internet, SMS, appels) de la
 ville de Milan, à partir du dataset **Telecom Italia Big Data Challenge**.
