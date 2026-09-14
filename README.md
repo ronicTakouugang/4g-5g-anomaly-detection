@@ -44,7 +44,7 @@ Siro) et explorables sur un tableau de bord 3D.
   mises en évidence par grille (détectée vs confirmée par les deux fenêtres).
 
 ## Pipeline
-
+![Pipeline](steps.png)
 Le traitement, entièrement dans `eda.ipynb`, suit ces étapes :
 
 ```
