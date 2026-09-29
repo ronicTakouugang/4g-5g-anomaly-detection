@@ -5,7 +5,7 @@ ville de Milan, à partir du dataset **Telecom Italia Big Data Challenge**.
 L'approche encode le profil horaire de trafic de chaque zone en une signature
 façon "ADN", compare chaque journée à un profil de référence via la distance
 de Damerau-Levenshtein, puis calcule un score z pour isoler les jours
-anormaux — inspirée du framework académique **DiNATrAX** (Maudoux &
+anormaux inspirée du framework académique **DiNATrAX** (Maudoux &
 Boumerdassi, IEEE ICC 2024). Le pipeline tourne indépendamment sur les trois
 canaux ; une anomalie confirmée simultanément sur plusieurs canaux est
 nettement plus fiable qu'une anomalie isolée. Les anomalies détectées sont
